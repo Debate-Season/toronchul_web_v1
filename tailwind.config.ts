@@ -3,6 +3,9 @@ import type { Config } from "tailwindcss";
 /**
  * 토론철 디자인 시스템(TDS) - Tailwind CSS 설정
  *
+ * ⚠️  이 파일은 design-system/build.js가 자동 생성합니다.
+ *     직접 수정하지 마세요. tokens.json을 수정한 뒤 빌드하세요.
+ *
  * Flutter de_colors.dart + de_fonts.dart 기반
  * 컬러·타이포그래피 토큰을 Tailwind 유틸리티로 매핑
  *
@@ -23,39 +26,39 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      /* ── Colors ─────────────────────────────── */
+      /* ── Colors (auto-generated from tokens.json) ── */
       colors: {
         white: "#FFFFFF",
 
         grey: {
-          10: "#EBE7ED",
-          30: "#C5C1C7",
-          50: "#7A7681",
-          70: "#504B58",
-          80: "#38353E",
-          90: "#2E2B34",
-          100: "#262226",
-          110: "#1D1A1D",
-          120: "#161416",
+          "10": "#EBE7ED",
+          "30": "#C5C1C7",
+          "50": "#7A7681",
+          "70": "#504B58",
+          "80": "#38353E",
+          "90": "#2E2B34",
+          "100": "#262226",
+          "110": "#1D1A1D",
+          "120": "#161416",
         },
 
         trans: {
-          30: "rgba(0, 0, 0, 0.30)",
-          50: "rgba(0, 0, 0, 0.50)",
+          "30": "rgba(0, 0, 0, 0.30)",
+          "50": "rgba(0, 0, 0, 0.50)",
         },
 
         brand: {
           DEFAULT: "#996BFA",
+          trans: "rgba(153, 107, 250, 0.80)",
           dark: "#7E66B0",
           disable: "#A590D0",
-          trans: "rgba(153, 107, 250, 0.80)",
         },
 
         tag: "#3D2E5A",
 
         red: {
-          DEFAULT: "#FF5C62",
           light: "#FFB9BB",
+          DEFAULT: "#FF5C62",
           "dark-on-grey": "#4C3942",
           dark: "#382125",
           mine: "#654654",
