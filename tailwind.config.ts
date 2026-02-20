@@ -3,10 +3,17 @@ import type { Config } from "tailwindcss";
 /**
  * 토론철 디자인 시스템(TDS) - Tailwind CSS 설정
  *
- * Flutter de_colors.dart 기반 컬러 토큰을 Tailwind 유틸리티로 매핑
+ * Flutter de_colors.dart + de_fonts.dart 기반
+ * 컬러·타이포그래피 토큰을 Tailwind 유틸리티로 매핑
  *
- * 사용 예시:
+ * ─── 컬러 사용 예시 ──────────────────────
  *   bg-brand, text-grey-50, border-red, bg-blue-dark 등
+ *
+ * ─── 타이포그래피 사용 예시 ──────────────
+ *   text-header-24 font-bold     → header24B
+ *   text-body-16 font-semibold   → body16Sb
+ *   text-body-14 font-medium     → body14M
+ *   text-caption-12 font-normal  → caption12R
  */
 const config: Config = {
   content: [
@@ -16,11 +23,10 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      /* ── Colors ─────────────────────────────── */
       colors: {
-        /* ── Base ─────────────────────────────────── */
         white: "#FFFFFF",
 
-        /* ── Grey Scale ───────────────────────────── */
         grey: {
           10: "#EBE7ED",
           30: "#C5C1C7",
@@ -33,13 +39,11 @@ const config: Config = {
           120: "#161416",
         },
 
-        /* ── Transparency (Black) ─────────────────── */
         trans: {
           30: "rgba(0, 0, 0, 0.30)",
           50: "rgba(0, 0, 0, 0.50)",
         },
 
-        /* ── Brand ────────────────────────────────── */
         brand: {
           DEFAULT: "#996BFA",
           dark: "#7E66B0",
@@ -47,10 +51,8 @@ const config: Config = {
           trans: "rgba(153, 107, 250, 0.80)",
         },
 
-        /* ── Tag ──────────────────────────────────── */
         tag: "#3D2E5A",
 
-        /* ── Red (찬성/Pro) ───────────────────────── */
         red: {
           DEFAULT: "#FF5C62",
           light: "#FFB9BB",
@@ -59,7 +61,6 @@ const config: Config = {
           mine: "#654654",
         },
 
-        /* ── Blue (반대/Con) ──────────────────────── */
         blue: {
           DEFAULT: "#5A61FF",
           "dark-on-grey": "#3C3A51",
@@ -67,7 +68,6 @@ const config: Config = {
           mine: "#4F4C71",
         },
 
-        /* ── Image Accent Colors ──────────────────── */
         image: {
           red: "#FE2222",
           orange: "#FF813D",
@@ -78,8 +78,70 @@ const config: Config = {
           purple: "#9500AF",
         },
 
-        /* ── Third-party ──────────────────────────── */
         kakao: "#FEE500",
+      },
+
+      /* ── Typography ─────────────────────────── */
+      fontFamily: {
+        sans: [
+          "Pretendard Variable",
+          "Pretendard",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+      },
+
+      fontSize: {
+        /** 48px / line 1.0 / ls -1.2px — largest (Bold) */
+        largest: [
+          "48px",
+          { lineHeight: "1", letterSpacing: "-1.2px" },
+        ],
+        /** 28px / line 1.5 / ls -0.7px — header28Sb */
+        "header-28": [
+          "28px",
+          { lineHeight: "1.5", letterSpacing: "-0.7px" },
+        ],
+        /** 24px / line 1.5 / ls -0.6px — header24B */
+        "header-24": [
+          "24px",
+          { lineHeight: "1.5", letterSpacing: "-0.6px" },
+        ],
+        /** 20px / line 1.4 / ls -0.5px — header20B */
+        "header-20": [
+          "20px",
+          { lineHeight: "1.4", letterSpacing: "-0.5px" },
+        ],
+        /** 18px / line 1.4 / ls -0.45px — header18Sb */
+        "header-18": [
+          "18px",
+          { lineHeight: "1.4", letterSpacing: "-0.45px" },
+        ],
+        /** 16px / line 1.5 / ls -0.4px — body16 (Sb/M/R) */
+        "body-16": [
+          "16px",
+          { lineHeight: "1.5", letterSpacing: "-0.4px" },
+        ],
+        /** 14px / line 1.5 / ls -0.35px — body14 (Sb/M/R) */
+        "body-14": [
+          "14px",
+          { lineHeight: "1.5", letterSpacing: "-0.35px" },
+        ],
+        /** 12px / line 1.5 / ls -0.3px — caption12 (SB/M/R) */
+        "caption-12": [
+          "12px",
+          { lineHeight: "1.5", letterSpacing: "-0.3px" },
+        ],
+        /** 12px / line 1.2 / ls -0.3px — caption12M2 (tight) */
+        "caption-12-tight": [
+          "12px",
+          { lineHeight: "1.2", letterSpacing: "-0.3px" },
+        ],
       },
     },
   },
