@@ -11,16 +11,7 @@ const path = require("path");
 // ── 경로 ──────────────────────────────────────────
 const TOKENS_PATH = path.join(__dirname, "tokens.json");
 const TAILWIND_PATH = path.resolve(__dirname, "..", "tailwind.config.ts");
-const DART_PATH = path.resolve(
-  __dirname,
-  "..",
-  "..",
-  "debateseason_frontend_v1",
-  "lib",
-  "core",
-  "constants",
-  "de_colors.dart"
-);
+const DART_PATH = path.join(__dirname, "generated", "de_colors.dart");
 
 // ── 토큰 읽기 ────────────────────────────────────
 const { colors } = JSON.parse(fs.readFileSync(TOKENS_PATH, "utf-8"));
@@ -290,4 +281,4 @@ function buildDart() {
 
 buildTailwind();
 buildDart();
-console.log("✅ 디자인 토큰 빌드 완료 (웹, 앱 동기화)");
+console.log("✅ 디자인 토큰 빌드 완료 (웹 적용 완료. Dart 코드는 generated 폴더에 생성됨)");
