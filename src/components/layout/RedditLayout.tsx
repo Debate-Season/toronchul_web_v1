@@ -1,8 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Home, Map, User, Flame } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  fetchTrendingTopics,
+  type TrendingTopic,
+} from "@/lib/api/home";
+import useAuthStore from "@/store/useAuthStore";
 
 // ── 메뉴 정의 ──────────────────────────────────────
 const NAV_ITEMS = [
@@ -62,6 +68,30 @@ function LeftSidebar() {
 
 // ── Right Sidebar (RNB) ───────────────────────────
 function RightSidebar() {
+  const { accessToken } = useAuthStore();
+  const [topics, setTopics] = useState<TrendingTopic[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const data = await fetchTrendingTopics(accessToken);
+        if (!cancelled) setTopics(data);
+      } catch {
+        // 사이드바 에러는 조용히 무시 (메인 콘텐츠에 영향 주지 않도록)
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
   return (
     <aside className="fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] hidden lg:block bg-surface border-l border-border overflow-y-auto">
       <div className="p-4">
@@ -73,27 +103,41 @@ function RightSidebar() {
             </h3>
           </div>
 
-          <ul className="flex flex-col gap-3">
-            {[
-              { rank: 1, title: "AI 규제, 찬성 vs 반대", comments: 128 },
-              { rank: 2, title: "주 4일제 도입해야 하는가", comments: 95 },
-              { rank: 3, title: "사형제 폐지 논쟁", comments: 74 },
-            ].map(({ rank, title, comments }) => (
-              <li key={rank} className="flex items-start gap-3">
-                <span className="text-body-14 font-bold text-brand">
-                  {rank}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-body-14 font-medium text-text-primary truncate">
-                    {title}
-                  </p>
-                  <p className="text-caption-12 text-text-secondary">
-                    댓글 {comments}개
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {loading ? (
+            <ul className="flex flex-col gap-3">
+              {[1, 2, 3].map((i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <div className="w-4 h-5 rounded bg-grey-90 animate-pulse" />
+                  <div className="flex-1">
+                    <div className="h-5 rounded bg-grey-90 animate-pulse mb-1" />
+                    <div className="h-4 w-16 rounded bg-grey-90 animate-pulse" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : topics.length > 0 ? (
+            <ul className="flex flex-col gap-3">
+              {topics.map(({ rank, title, comments }) => (
+                <li key={rank} className="flex items-start gap-3">
+                  <span className="text-body-14 font-bold text-brand">
+                    {rank}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-14 font-medium text-text-primary truncate">
+                      {title}
+                    </p>
+                    <p className="text-caption-12 text-text-secondary">
+                      댓글 {comments}개
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-caption-12 text-text-secondary">
+              아직 인기 토론이 없습니다.
+            </p>
+          )}
         </div>
       </div>
     </aside>
