@@ -14,6 +14,8 @@ export default function IssueMapPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [retryKey, setRetryKey] = useState(0);
+
   useEffect(() => {
     if (!_hasHydrated) return;
 
@@ -46,7 +48,7 @@ export default function IssueMapPage() {
     return () => {
       cancelled = true;
     };
-  }, [_hasHydrated, accessToken]);
+  }, [_hasHydrated, accessToken, retryKey]);
 
   // ── Hydration 대기 / Loading ──
   if (!_hasHydrated || loading) {
@@ -94,8 +96,8 @@ export default function IssueMapPage() {
         <p className="text-body-16 text-red">{error}</p>
         <button
           type="button"
-          onClick={() => window.location.reload()}
-          className="text-body-14 text-brand underline cursor-pointer"
+          onClick={() => setRetryKey((k) => k + 1)}
+          className="rounded-lg border border-border px-4 py-2 text-body-14 text-text-secondary transition-colors hover:bg-grey-90 cursor-pointer"
         >
           다시 시도
         </button>
