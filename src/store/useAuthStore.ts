@@ -60,4 +60,15 @@ const useAuthStore = create<AuthState & AuthActions>()(
   ),
 );
 
+// ── 클라이언트 hydration 안전장치 ──
+// onRehydrateStorage 콜백이 누락될 수 있으므로 이중으로 보장
+if (typeof window !== "undefined") {
+  if (useAuthStore.persist.hasHydrated()) {
+    useAuthStore.setState({ _hasHydrated: true });
+  }
+  useAuthStore.persist.onFinishHydration(() => {
+    useAuthStore.setState({ _hasHydrated: true });
+  });
+}
+
 export default useAuthStore;
