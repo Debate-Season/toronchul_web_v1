@@ -5,8 +5,8 @@ import { Home, Map, User, Flame } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  fetchTrendingTopics,
-  type TrendingTopic,
+  fetchHomeRefresh,
+  type BestChatRoom,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
 
@@ -69,7 +69,7 @@ function LeftSidebar() {
 // ── Right Sidebar (RNB) ───────────────────────────
 function RightSidebar() {
   const { accessToken } = useAuthStore();
-  const [topics, setTopics] = useState<TrendingTopic[]>([]);
+  const [topics, setTopics] = useState<BestChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -77,8 +77,8 @@ function RightSidebar() {
 
     async function load() {
       try {
-        const data = await fetchTrendingTopics(accessToken);
-        if (!cancelled) setTopics(data);
+        const data = await fetchHomeRefresh(accessToken);
+        if (!cancelled) setTopics(data.top5BestChatRooms);
       } catch {
         // 사이드바 에러는 조용히 무시 (메인 콘텐츠에 영향 주지 않도록)
       } finally {
@@ -117,17 +117,17 @@ function RightSidebar() {
             </ul>
           ) : topics.length > 0 ? (
             <ul className="flex flex-col gap-3">
-              {topics.map(({ rank, title, comments }) => (
-                <li key={rank} className="flex items-start gap-3">
+              {topics.map((topic, idx) => (
+                <li key={topic.debateId} className="flex items-start gap-3">
                   <span className="text-body-14 font-bold text-brand">
-                    {rank}
+                    {idx + 1}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-body-14 font-medium text-text-primary truncate">
-                      {title}
+                      {topic.debateTitle}
                     </p>
                     <p className="text-caption-12 text-text-secondary">
-                      댓글 {comments}개
+                      {topic.issueTitle}
                     </p>
                   </div>
                 </li>
