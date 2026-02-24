@@ -11,6 +11,8 @@ interface AuthState {
   isLogin: boolean;
   profileStatus: ProfileStatus | null;
   termsStatus: TermsStatus | null;
+  /** localStorage → 메모리 복원이 완료되었는지 여부 */
+  _hasHydrated: boolean;
 }
 
 interface AuthActions {
@@ -30,6 +32,7 @@ const useAuthStore = create<AuthState & AuthActions>()(
       isLogin: false,
       profileStatus: null,
       termsStatus: null,
+      _hasHydrated: false,
 
       // Actions
       setTokens: (accessToken, refreshToken) =>
@@ -50,6 +53,9 @@ const useAuthStore = create<AuthState & AuthActions>()(
     }),
     {
       name: "auth-storage",
+      onRehydrateStorage: () => () => {
+        useAuthStore.setState({ _hasHydrated: true });
+      },
     },
   ),
 );

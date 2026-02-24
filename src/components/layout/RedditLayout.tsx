@@ -68,11 +68,19 @@ function LeftSidebar() {
 
 // ── Right Sidebar (RNB) ───────────────────────────
 function RightSidebar() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, _hasHydrated } = useAuthStore();
   const [topics, setTopics] = useState<BestChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!_hasHydrated) return;
+
+    // 비로그인이면 API 호출하지 않음
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -90,7 +98,7 @@ function RightSidebar() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [_hasHydrated, accessToken]);
 
   return (
     <aside className="fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] hidden lg:block bg-surface border-l border-border overflow-y-auto">
