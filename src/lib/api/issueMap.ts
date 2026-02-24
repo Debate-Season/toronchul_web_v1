@@ -1,18 +1,31 @@
 import { apiFetch } from "./client";
 
-// ── Types ─────────────────────────────────────────
+// ── Types (Swagger: GET /api/v1/issue-map) ───────
+
 export interface IssueMapItem {
-  id: string;
+  issueId: number;
   title: string;
-  category: string;
+  createdAt: string;
   countChatRoom: number;
-  agree: number;
-  disagree: number;
+  bookMarks: number;
 }
 
-// ── 이슈맵 전체 목록 ─────────────────────────────
+interface IssueMapResponse {
+  items: IssueMapItem[];
+}
+
+// ── 이슈맵 목록 ─────────────────────────────────────
 export async function fetchIssueMap(
   token?: string | null,
+  options?: { page?: string; majorcategory?: string },
 ): Promise<IssueMapItem[]> {
-  return apiFetch<IssueMapItem[]>("/api/v2/issues/map", { token });
+  const params = new URLSearchParams();
+  if (options?.page) params.set("page", options.page);
+  if (options?.majorcategory) params.set("majorcategory", options.majorcategory);
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  const res = await apiFetch<IssueMapResponse>(`/api/v1/issue-map${query}`, {
+    token,
+  });
+  return res.items;
 }

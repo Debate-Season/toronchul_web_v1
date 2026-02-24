@@ -1,30 +1,51 @@
 import { apiFetch } from "./client";
-import type { BestIssueRoom } from "@/components/home/IssueCardNew";
-import type { ChatRoomResponse } from "@/components/home/IssueCard";
 
-// ── 핫한 토론 주제 (베스트 이슈) ─────────────────
-export async function fetchBestIssues(
-  token?: string | null,
-): Promise<BestIssueRoom[]> {
-  return apiFetch<BestIssueRoom[]>("/api/v2/issues/best", { token });
-}
+// ── Types (Swagger: GET /api/v1/home/refresh) ────
 
-// ── 실시간 토론장 (채팅방 목록) ──────────────────
-export async function fetchChatRooms(
-  token?: string | null,
-): Promise<ChatRoomResponse[]> {
-  return apiFetch<ChatRoomResponse[]>("/api/v2/chatrooms", { token });
-}
-
-// ── 실시간 핫한 토론 (사이드바용 인기 주제) ──────
-export interface TrendingTopic {
-  rank: number;
+export interface BreakingNews {
   title: string;
-  comments: number;
+  url: string;
 }
 
-export async function fetchTrendingTopics(
+export interface BestChatRoom {
+  issueId: number;
+  issueTitle: string;
+  debateId: number;
+  debateTitle: string;
+  time: string;
+}
+
+export interface BestIssueRoom {
+  issueId: number;
+  title: string;
+  createdAt: string;
+  countChatRoom: number;
+  bookMarks: number;
+}
+
+export interface ChatRoomResponse {
+  chatRoomId: number;
+  title: string;
+  content: string;
+  agree: number;
+  disagree: number;
+  createdAt: string;
+  opinion: string;
+  time: string;
+}
+
+export interface HomeRefreshData {
+  breakingNews: BreakingNews[];
+  top5BestChatRooms: BestChatRoom[];
+  top5BestIssueRooms: BestIssueRoom[];
+  chatRoomResponse: ChatRoomResponse[];
+}
+
+// ── 홈 화면 데이터 ──────────────────────────────────
+export async function fetchHomeRefresh(
   token?: string | null,
-): Promise<TrendingTopic[]> {
-  return apiFetch<TrendingTopic[]>("/api/v2/issues/trending", { token });
+  page?: number,
+): Promise<HomeRefreshData> {
+  const params = page != null ? `?page=${page}` : "";
+  return apiFetch<HomeRefreshData>(`/api/v1/home/refresh${params}`, { token });
 }

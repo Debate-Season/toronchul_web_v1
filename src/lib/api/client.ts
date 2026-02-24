@@ -11,9 +11,18 @@ interface FetchOptions extends Omit<RequestInit, "headers"> {
   token?: string | null;
 }
 
+/** Swagger 공통 응답 래퍼 */
+interface ApiResponse<T> {
+  status: number;
+  code: string;
+  message: string;
+  data: T;
+}
+
 /**
  * 인증 헤더를 자동 첨부하는 fetch 래퍼.
  * token이 주어지면 Authorization: Bearer {token}을 추가한다.
+ * 응답의 { status, code, message, data } 래퍼에서 data만 추출하여 반환한다.
  */
 export async function apiFetch<T>(
   path: string,
@@ -36,8 +45,12 @@ export async function apiFetch<T>(
   });
 
   if (!res.ok) {
-    throw new Error(`API ${rest.method ?? "GET"} ${path} failed: ${res.status}`);
+    const body = await res.json().catch(() => null);
+    const code = body?.code ?? res.status;
+    const msg = body?.message ?? `API ${rest.method ?? "GET"} ${path} failed: ${res.status}`;
+    throw new Error(`[${code}] ${msg}`);
   }
 
-  return res.json();
+  const json: ApiResponse<T> = await res.json();
+  return json.data;
 }
