@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import IssueCard from "@/components/home/IssueCard";
 import IssueCardNew from "@/components/home/IssueCardNew";
 import { fetchHomeRefresh, type HomeRefreshData } from "@/lib/api/home";
@@ -8,13 +9,21 @@ import useAuthStore from "@/store/useAuthStore";
 
 // ── Page ──────────────────────────────────────────
 export default function Home() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, _hasHydrated } = useAuthStore();
 
   const [homeData, setHomeData] = useState<HomeRefreshData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!_hasHydrated) return; // 스토어 복원 대기
+
+    // 비로그인 → API 호출 불필요 (서버가 401 반환)
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -39,10 +48,10 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [_hasHydrated, accessToken]);
 
-  // ── Loading ──
-  if (loading) {
+  // ── Hydration 대기 / Loading ──
+  if (!_hasHydrated || loading) {
     return (
       <div className="flex flex-col gap-8 py-4">
         <section>
@@ -67,6 +76,26 @@ export default function Home() {
             ))}
           </div>
         </section>
+      </div>
+    );
+  }
+
+  // ── 비로그인: 로그인 유도 ──
+  if (!accessToken) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <p className="text-header-20 font-bold text-text-primary">
+          토론철에 오신 것을 환영합니다
+        </p>
+        <p className="text-body-14 text-text-secondary text-center">
+          로그인하면 실시간 토론과 핫한 이슈를 확인할 수 있습니다.
+        </p>
+        <Link
+          href="/login"
+          className="mt-2 rounded-lg bg-brand px-6 py-2.5 text-body-14 font-semibold text-white transition-colors hover:opacity-90"
+        >
+          로그인하기
+        </Link>
       </div>
     );
   }

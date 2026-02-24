@@ -1,19 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { fetchIssueMap, type IssueMapItem } from "@/lib/api/issueMap";
 import IssueMapCard from "@/components/map/IssueMapCard";
 import useAuthStore from "@/store/useAuthStore";
 
 // ── Page ──────────────────────────────────────────
 export default function IssueMapPage() {
-  const { accessToken } = useAuthStore();
+  const { accessToken, _hasHydrated } = useAuthStore();
 
   const [items, setItems] = useState<IssueMapItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!_hasHydrated) return;
+
+    if (!accessToken) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
@@ -38,10 +46,10 @@ export default function IssueMapPage() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, [_hasHydrated, accessToken]);
 
-  // ── Loading ──
-  if (loading) {
+  // ── Hydration 대기 / Loading ──
+  if (!_hasHydrated || loading) {
     return (
       <div className="flex flex-col gap-6 py-4">
         <div className="h-8 w-32 rounded bg-grey-90 animate-pulse" />
@@ -52,6 +60,28 @@ export default function IssueMapPage() {
               className="h-36 rounded-2xl bg-grey-90 animate-pulse"
             />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 비로그인: 로그인 유도 ──
+  if (!accessToken) {
+    return (
+      <div className="flex flex-col gap-6 py-4">
+        <h1 className="text-header-20 font-bold text-text-primary">
+          이슈맵
+        </h1>
+        <div className="flex flex-col items-center justify-center gap-4 py-16">
+          <p className="text-body-14 text-text-secondary text-center">
+            로그인하면 다양한 이슈를 확인할 수 있습니다.
+          </p>
+          <Link
+            href="/login"
+            className="rounded-lg bg-brand px-6 py-2.5 text-body-14 font-semibold text-white transition-colors hover:opacity-90"
+          >
+            로그인하기
+          </Link>
         </div>
       </div>
     );
