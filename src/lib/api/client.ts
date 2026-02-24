@@ -1,9 +1,9 @@
 // ── Shared API Client ─────────────────────────────
-// 브라우저에서는 /proxy 경로를 통해 Next.js rewrites로 프록시,
-// 서버(SSR)에서는 직접 외부 URL 호출
+// 브라우저: /api/proxy Route Handler → 백엔드
+// 서버(SSR): 직접 외부 URL 호출
 const API_URL =
   typeof window !== "undefined"
-    ? "/proxy"
+    ? "/api/proxy"
     : (process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "");
 
 interface FetchOptions extends Omit<RequestInit, "headers" | "signal"> {
