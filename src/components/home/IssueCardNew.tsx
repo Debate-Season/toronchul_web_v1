@@ -2,7 +2,9 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { BestIssueRoom } from "@/lib/api/home";
 
-// ── IssueCardNew (베스트 이슈) ───────────────────
+export type { BestIssueRoom };
+
+// ── IssueCardNew ──────────────────────────────────
 export default function IssueCardNew({ data }: { data: BestIssueRoom }) {
   return (
     <Link href={`/issue/${data.issueId}`}>

@@ -8,7 +8,6 @@ import {
   fetchHomeRecommend,
   type BestIssueRoom,
   type ChatRoomResponse,
-  type HomeRecommendResponse,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
 

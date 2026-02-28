@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ChatRoomResponse } from "@/lib/api/home";
 
+export type { ChatRoomResponse };
+
 // ── 찬반 비율 계산 ──────────────────────────────────
 function getPercentages(agree: number, disagree: number) {
   const total = agree + disagree;
@@ -9,7 +11,7 @@ function getPercentages(agree: number, disagree: number) {
   return { agreePercent, disagreePercent: 100 - agreePercent };
 }
 
-// ── IssueCard (채팅방 카드) ─────────────────────────
+// ── IssueCard ─────────────────────────────────────
 export default function IssueCard({ data }: { data: ChatRoomResponse }) {
   const { agreePercent, disagreePercent } = getPercentages(
     data.agree,
