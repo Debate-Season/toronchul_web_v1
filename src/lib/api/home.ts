@@ -1,19 +1,6 @@
 import { apiFetch } from "./client";
 
-// ── Types (Swagger: GET /api/v1/home/refresh) ────
-
-export interface BreakingNews {
-  title: string;
-  url: string;
-}
-
-export interface BestChatRoom {
-  issueId: number;
-  issueTitle: string;
-  debateId: number;
-  debateTitle: string;
-  time: string;
-}
+// ── Types ─────────────────────────────────────────
 
 export interface BestIssueRoom {
   issueId: number;
@@ -30,22 +17,29 @@ export interface ChatRoomResponse {
   agree: number;
   disagree: number;
   createdAt: string;
-  opinion: string;
+  opinion: "AGREE" | "DISAGREE";
   time: string;
 }
 
-export interface HomeRefreshData {
-  breakingNews: BreakingNews[];
-  top5BestChatRooms: BestChatRoom[];
+export interface HomeRecommendResponse {
+  breakingNews: { title: string; url: string }[];
+  top5BestChatRooms: {
+    issueId: number;
+    issueTitle: string;
+    debateId: number;
+    debateTitle: string;
+    time: string;
+  }[];
   top5BestIssueRooms: BestIssueRoom[];
   chatRoomResponse: ChatRoomResponse[];
 }
 
-// ── 홈 화면 데이터 ──────────────────────────────────
-export async function fetchHomeRefresh(
+// ── API ───────────────────────────────────────────
+
+export async function fetchHomeRecommend(
   token?: string | null,
   page?: number,
-): Promise<HomeRefreshData> {
+): Promise<HomeRecommendResponse> {
   const params = page != null ? `?page=${page}` : "";
-  return apiFetch<HomeRefreshData>(`/api/v1/home/refresh${params}`, { token });
+  return apiFetch<HomeRecommendResponse>(`/api/v1/home/recommend${params}`, { token });
 }

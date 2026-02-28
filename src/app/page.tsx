@@ -4,23 +4,59 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import IssueCard from "@/components/home/IssueCard";
 import IssueCardNew from "@/components/home/IssueCardNew";
-import { fetchHomeRefresh, type HomeRefreshData } from "@/lib/api/home";
+import {
+  fetchHomeRecommend,
+  type BestIssueRoom,
+  type ChatRoomResponse,
+  type HomeRecommendResponse,
+} from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
+
+// ── Skeleton ─────────────────────────────────────
+function SkeletonShell() {
+  return (
+    <div className="flex flex-col gap-8 py-4">
+      <section>
+        <div className="h-6 w-40 rounded bg-grey-90 animate-pulse mb-4" />
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="flex-shrink-0 w-56 h-28 rounded-2xl bg-grey-90 animate-pulse"
+            />
+          ))}
+        </div>
+      </section>
+      <section>
+        <div className="h-6 w-40 rounded bg-grey-90 animate-pulse mb-4" />
+        <div className="flex flex-col gap-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-32 rounded-2xl bg-grey-90 animate-pulse"
+            />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
 
 // ── Page ──────────────────────────────────────────
 export default function Home() {
   const { accessToken, _hasHydrated } = useAuthStore();
 
-  const [homeData, setHomeData] = useState<HomeRefreshData | null>(null);
+  const [bestIssues, setBestIssues] = useState<BestIssueRoom[]>([]);
+  const [chatRooms, setChatRooms] = useState<ChatRoomResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [hasMore, setHasMore] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
-    if (!_hasHydrated) return; // 스토어 복원 대기
+    if (!_hasHydrated) return;
 
-    // 비로그인 → API 호출 불필요 (서버가 401 반환)
     if (!accessToken) {
       setLoading(false);
       return;
@@ -32,13 +68,16 @@ export default function Home() {
       try {
         setLoading(true);
         setError(null);
-
-        const data = await fetchHomeRefresh(accessToken);
-        if (!cancelled) setHomeData(data);
+        const data = await fetchHomeRecommend(accessToken);
+        if (!cancelled) {
+          setBestIssues(data.top5BestIssueRooms);
+          setChatRooms(data.chatRoomResponse);
+          setHasMore(data.chatRoomResponse.length >= 3);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : "데이터를 불러오지 못했습니다.",
+            err instanceof Error ? err.message : "피드를 불러오지 못했습니다.",
           );
         }
       } finally {
@@ -52,34 +91,24 @@ export default function Home() {
     };
   }, [_hasHydrated, accessToken, retryKey]);
 
+  async function loadMore() {
+    if (loadingMore || !hasMore || chatRooms.length === 0) return;
+    setLoadingMore(true);
+    try {
+      const cursor = chatRooms[chatRooms.length - 1].chatRoomId;
+      const data = await fetchHomeRecommend(accessToken, cursor);
+      setChatRooms((prev) => [...prev, ...data.chatRoomResponse]);
+      setHasMore(data.chatRoomResponse.length >= 3);
+    } catch {
+      setError("추가 피드를 불러오지 못했습니다.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   // ── Hydration 대기 / Loading ──
   if (!_hasHydrated || loading) {
-    return (
-      <div className="flex flex-col gap-8 py-4">
-        <section>
-          <div className="h-6 w-40 rounded bg-grey-90 animate-pulse mb-4" />
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="flex-shrink-0 w-56 h-28 rounded-2xl bg-grey-90 animate-pulse"
-              />
-            ))}
-          </div>
-        </section>
-        <section>
-          <div className="h-6 w-40 rounded bg-grey-90 animate-pulse mb-4" />
-          <div className="flex flex-col gap-3">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-32 rounded-2xl bg-grey-90 animate-pulse"
-              />
-            ))}
-          </div>
-        </section>
-      </div>
-    );
+    return <SkeletonShell />;
   }
 
   // ── 비로그인: 로그인 유도 ──
@@ -102,8 +131,8 @@ export default function Home() {
     );
   }
 
-  // ── Error ──
-  if (error) {
+  // ── Error (데이터 없을 때) ──
+  if (error && chatRooms.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-body-16 text-red">{error}</p>
@@ -118,20 +147,16 @@ export default function Home() {
     );
   }
 
-  if (!homeData) return null;
-
-  const { top5BestIssueRooms, chatRoomResponse } = homeData;
-
   return (
     <div className="flex flex-col gap-8 py-4">
       {/* 핫한 토론 주제 (가로 스크롤) */}
-      {top5BestIssueRooms.length > 0 && (
+      {bestIssues.length > 0 && (
         <section>
           <h2 className="text-header-20 font-bold text-text-primary mb-4">
             핫한 토론 주제
           </h2>
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {top5BestIssueRooms.map((issue) => (
+            {bestIssues.map((issue) => (
               <IssueCardNew key={issue.issueId} data={issue} />
             ))}
           </div>
@@ -139,21 +164,38 @@ export default function Home() {
       )}
 
       {/* 실시간 토론장 (세로 리스트) */}
-      {chatRoomResponse.length > 0 && (
+      {chatRooms.length > 0 && (
         <section>
           <h2 className="text-header-20 font-bold text-text-primary mb-4">
             실시간 토론장
           </h2>
           <div className="flex flex-col gap-3">
-            {chatRoomResponse.map((room) => (
+            {chatRooms.map((room) => (
               <IssueCard key={room.chatRoomId} data={room} />
             ))}
           </div>
+
+          {/* 더보기 */}
+          {hasMore && (
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="mt-4 w-full py-3 rounded-xl border border-border text-body-14 font-medium text-text-secondary hover:bg-surface-elevated transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {loadingMore ? "불러오는 중..." : "더보기"}
+            </button>
+          )}
+          {error && (
+            <p className="mt-2 text-center text-caption-12 text-red">
+              {error}
+            </p>
+          )}
         </section>
       )}
 
       {/* 데이터가 하나도 없을 때 */}
-      {top5BestIssueRooms.length === 0 && chatRoomResponse.length === 0 && (
+      {bestIssues.length === 0 && chatRooms.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-body-16 text-text-secondary">
             아직 등록된 토론이 없습니다.

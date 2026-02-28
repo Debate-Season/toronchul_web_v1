@@ -2,23 +2,20 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 // ── Types ─────────────────────────────────────────
-type ProfileStatus = "INCOMPLETE" | "COMPLETE";
-type TermsStatus = "NOT_AGREED" | "AGREED";
-
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isLogin: boolean;
-  profileStatus: ProfileStatus | null;
-  termsStatus: TermsStatus | null;
+  profileStatus: boolean | null;
+  termsStatus: boolean | null;
   /** localStorage → 메모리 복원이 완료되었는지 여부 */
   _hasHydrated: boolean;
 }
 
 interface AuthActions {
   setTokens: (accessToken: string, refreshToken: string) => void;
-  setProfileStatus: (status: ProfileStatus) => void;
-  setTermsStatus: (status: TermsStatus) => void;
+  setProfileStatus: (status: boolean) => void;
+  setTermsStatus: (status: boolean) => void;
   logout: () => void;
 }
 
