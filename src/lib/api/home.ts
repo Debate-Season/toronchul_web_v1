@@ -21,15 +21,17 @@ export interface ChatRoomResponse {
   time: string;
 }
 
+export interface BestChatRoom {
+  issueId: number;
+  issueTitle: string;
+  debateId: number;
+  debateTitle: string;
+  time: string;
+}
+
 export interface HomeRecommendResponse {
   breakingNews: { title: string; url: string }[];
-  top5BestChatRooms: {
-    issueId: number;
-    issueTitle: string;
-    debateId: number;
-    debateTitle: string;
-    time: string;
-  }[];
+  top5BestChatRooms: BestChatRoom[];
   top5BestIssueRooms: BestIssueRoom[];
   chatRoomResponse: ChatRoomResponse[];
 }

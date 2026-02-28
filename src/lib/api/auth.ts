@@ -1,4 +1,4 @@
-import { api } from "@/lib/api/client";
+import { apiFetch } from "@/lib/api/client";
 
 // ── Types ─────────────────────────────────────────
 export interface LoginRequest {
@@ -18,5 +18,8 @@ export interface LoginResponse {
 export async function loginWithOidc(
   body: LoginRequest,
 ): Promise<LoginResponse> {
-  return api.post<LoginResponse>("/api/v2/users/login", body);
+  return apiFetch<LoginResponse>("/api/v2/users/login", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }

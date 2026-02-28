@@ -5,7 +5,7 @@ import { Home, Map, User, Flame } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  fetchHomeRefresh,
+  fetchHomeRecommend,
   type BestChatRoom,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
@@ -85,7 +85,7 @@ function RightSidebar() {
 
     async function load() {
       try {
-        const data = await fetchHomeRefresh(accessToken);
+        const data = await fetchHomeRecommend(accessToken);
         if (!cancelled) setTopics(data.top5BestChatRooms);
       } catch {
         // 사이드바 에러는 조용히 무시 (메인 콘텐츠에 영향 주지 않도록)
