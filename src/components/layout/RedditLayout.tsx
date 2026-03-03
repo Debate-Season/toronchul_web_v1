@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Home, Map, User, Flame } from "lucide-react";
+import { Home, Map, User, LogIn, Flame } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,26 +10,37 @@ import {
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
 
-// ── 메뉴 정의 ──────────────────────────────────────
-const NAV_ITEMS = [
+// ── 공통 메뉴 (비로그인도 접근 가능) ──────────────────
+const PUBLIC_NAV_ITEMS = [
   { href: "/", label: "홈", icon: Home },
   { href: "/map", label: "이슈맵", icon: Map },
-  { href: "/profile", label: "프로필", icon: User },
 ] as const;
 
 // ── Top Bar ────────────────────────────────────────
 function TopBar() {
+  const { accessToken, _hasHydrated } = useAuthStore();
+
   return (
     <header className="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-surface border-b border-border">
       <Link href="/" className="text-header-18 font-bold text-brand">
         토론철
       </Link>
-      <Link
-        href="/profile"
-        className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors"
-      >
-        <User size={20} className="text-text-secondary" />
-      </Link>
+      {_hasHydrated && !accessToken ? (
+        <Link
+          href="/login"
+          className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-body-14 font-semibold text-white transition-colors hover:opacity-90"
+        >
+          <LogIn size={16} />
+          로그인
+        </Link>
+      ) : (
+        <Link
+          href="/profile"
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors"
+        >
+          <User size={20} className="text-text-secondary" />
+        </Link>
+      )}
     </header>
   );
 }
@@ -37,11 +48,16 @@ function TopBar() {
 // ── Left Sidebar (LNB) ────────────────────────────
 function LeftSidebar() {
   const pathname = usePathname();
+  const { accessToken } = useAuthStore();
+
+  const navItems = accessToken
+    ? [...PUBLIC_NAV_ITEMS, { href: "/profile", label: "프로필", icon: User } as const]
+    : [...PUBLIC_NAV_ITEMS, { href: "/login", label: "로그인", icon: LogIn } as const];
 
   return (
     <aside className="fixed left-0 top-14 w-64 h-[calc(100vh-3.5rem)] hidden md:block bg-surface border-r border-border overflow-y-auto">
       <nav className="flex flex-col gap-1 p-3">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
           return (
             <Link
@@ -74,12 +90,6 @@ function RightSidebar() {
 
   useEffect(() => {
     if (!_hasHydrated) return;
-
-    // 비로그인이면 API 호출하지 않음
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
 
     let cancelled = false;
 
@@ -155,10 +165,15 @@ function RightSidebar() {
 // ── Bottom Nav (모바일) ────────────────────────────
 function BottomNav() {
   const pathname = usePathname();
+  const { accessToken } = useAuthStore();
+
+  const navItems = accessToken
+    ? [...PUBLIC_NAV_ITEMS, { href: "/profile", label: "프로필", icon: User } as const]
+    : [...PUBLIC_NAV_ITEMS, { href: "/login", label: "로그인", icon: LogIn } as const];
 
   return (
     <nav className="fixed bottom-0 left-0 w-full h-16 z-50 flex items-center justify-around bg-surface border-t border-border md:hidden">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+      {navItems.map(({ href, label, icon: Icon }) => {
         const isActive = pathname === href;
         return (
           <Link
