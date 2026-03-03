@@ -2,7 +2,7 @@ import { apiFetch } from "./client";
 
 // ── Types ─────────────────────────────────────────
 
-export interface BestIssueRoom {
+export interface IssueRoom {
   issueId: number;
   title: string;
   createdAt: string;
@@ -29,19 +29,70 @@ export interface BestChatRoom {
   time: string;
 }
 
-export interface HomeRecommendResponse {
-  breakingNews: { title: string; url: string }[];
-  top5BestChatRooms: BestChatRoom[];
-  top5BestIssueRooms: BestIssueRoom[];
-  chatRoomResponse: ChatRoomResponse[];
+export interface MediaItem {
+  mediaId?: number;
+  title: string;
+  url: string;
+  type?: string;
+  thumbnailUrl?: string;
+  source?: string;
+}
+
+/** /api/v1/users/home 응답 — 구조가 배열 또는 객체일 수 있음 */
+export interface HomeResponse {
+  issueRooms: IssueRoom[];
+  chatRooms: ChatRoomResponse[];
+  bestChatRooms: BestChatRoom[];
 }
 
 // ── API ───────────────────────────────────────────
 
-export async function fetchHomeRecommend(
+/**
+ * 홈 화면 데이터 (이슈방 전체 목록)
+ * Swagger: GET /api/v1/users/home
+ */
+export async function fetchHome(
   token?: string | null,
   page?: number,
-): Promise<HomeRecommendResponse> {
+): Promise<HomeResponse> {
   const params = page != null ? `?page=${page}` : "";
-  return apiFetch<HomeRecommendResponse>(`/api/v1/home/recommend${params}`, { token });
+  const raw = await apiFetch<unknown>(`/api/v1/users/home${params}`, { token });
+
+  // 응답 형태에 따라 유연하게 파싱
+  if (Array.isArray(raw)) {
+    // data가 배열이면 이슈방 목록으로 취급
+    return { issueRooms: raw, chatRooms: [], bestChatRooms: [] };
+  }
+
+  const obj = raw as Record<string, unknown>;
+
+  return {
+    issueRooms: toArray(
+      obj.issueRooms ?? obj.issues ?? obj.top5BestIssueRooms ?? obj.items,
+    ),
+    chatRooms: toArray(obj.chatRooms ?? obj.chatRoomResponse),
+    bestChatRooms: toArray(obj.bestChatRooms ?? obj.top5BestChatRooms),
+  };
+}
+
+/**
+ * 미디어 목록
+ * Swagger: GET /api/v1/home/media
+ */
+export async function fetchMedia(
+  token?: string | null,
+): Promise<MediaItem[]> {
+  const raw = await apiFetch<unknown>(`/api/v1/home/media`, { token });
+
+  if (Array.isArray(raw)) return raw;
+
+  const obj = raw as Record<string, unknown>;
+  return toArray(obj.items ?? obj.media ?? obj.mediaList);
+}
+
+// ── Helpers ───────────────────────────────────────
+
+function toArray<T = unknown>(val: unknown): T[] {
+  if (Array.isArray(val)) return val;
+  return [];
 }

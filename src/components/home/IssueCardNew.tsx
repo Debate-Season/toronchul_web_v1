@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import type { BestIssueRoom } from "@/lib/api/home";
-
-export type { BestIssueRoom };
+import type { IssueRoom } from "@/lib/api/home";
 
 // ── IssueCardNew ──────────────────────────────────
-export default function IssueCardNew({ data }: { data: BestIssueRoom }) {
+export default function IssueCardNew({ data }: { data: IssueRoom }) {
   return (
     <Link href={`/issue/${data.issueId}`}>
       <article className="flex-shrink-0 w-56 rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg hover:border-grey-70">

@@ -6,10 +6,12 @@ import IssueCardNew from "@/components/home/IssueCardNew";
 import LiveDebateCard from "@/components/home/LiveDebateCard";
 import BreakingNewsCard from "@/components/home/BreakingNewsCard";
 import {
-  fetchHomeRecommend,
-  type BestIssueRoom,
+  fetchHome,
+  fetchMedia,
+  type IssueRoom,
   type BestChatRoom,
   type ChatRoomResponse,
+  type MediaItem,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
 import { Radio, Newspaper, Flame, Lightbulb } from "lucide-react";
@@ -70,16 +72,12 @@ function SkeletonShell() {
 export default function Home() {
   const { accessToken, _hasHydrated } = useAuthStore();
 
-  const [bestIssues, setBestIssues] = useState<BestIssueRoom[]>([]);
+  const [issueRooms, setIssueRooms] = useState<IssueRoom[]>([]);
   const [bestChatRooms, setBestChatRooms] = useState<BestChatRoom[]>([]);
   const [chatRooms, setChatRooms] = useState<ChatRoomResponse[]>([]);
-  const [breakingNews, setBreakingNews] = useState<
-    { title: string; url: string }[]
-  >([]);
+  const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
@@ -91,14 +89,18 @@ export default function Home() {
       try {
         setLoading(true);
         setError(null);
+
         // Optional Auth: token이 없어도 API 호출 가능
-        const data = await fetchHomeRecommend(accessToken);
+        const [homeData, mediaData] = await Promise.all([
+          fetchHome(accessToken),
+          fetchMedia(accessToken).catch(() => [] as MediaItem[]),
+        ]);
+
         if (!cancelled) {
-          setBestIssues(data.top5BestIssueRooms);
-          setBestChatRooms(data.top5BestChatRooms);
-          setChatRooms(data.chatRoomResponse);
-          setBreakingNews(data.breakingNews);
-          setHasMore(data.chatRoomResponse.length >= 3);
+          setIssueRooms(homeData.issueRooms);
+          setBestChatRooms(homeData.bestChatRooms);
+          setChatRooms(homeData.chatRooms);
+          setMedia(mediaData);
         }
       } catch (err) {
         if (!cancelled) {
@@ -117,28 +119,13 @@ export default function Home() {
     };
   }, [_hasHydrated, accessToken, retryKey]);
 
-  async function loadMore() {
-    if (loadingMore || !hasMore || chatRooms.length === 0) return;
-    setLoadingMore(true);
-    try {
-      const cursor = chatRooms[chatRooms.length - 1].chatRoomId;
-      const data = await fetchHomeRecommend(accessToken, cursor);
-      setChatRooms((prev) => [...prev, ...data.chatRoomResponse]);
-      setHasMore(data.chatRoomResponse.length >= 3);
-    } catch {
-      setError("추가 피드를 불러오지 못했습니다.");
-    } finally {
-      setLoadingMore(false);
-    }
-  }
-
   // ── Hydration 대기 / Loading ──
   if (!_hasHydrated || loading) {
     return <SkeletonShell />;
   }
 
   // ── Error (데이터 없을 때) ──
-  if (error && chatRooms.length === 0) {
+  if (error && issueRooms.length === 0 && chatRooms.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-body-16 text-red">{error}</p>
@@ -155,9 +142,9 @@ export default function Home() {
 
   const hasAnyData =
     bestChatRooms.length > 0 ||
-    breakingNews.length > 0 ||
+    media.length > 0 ||
     chatRooms.length > 0 ||
-    bestIssues.length > 0;
+    issueRooms.length > 0;
 
   return (
     <div className="flex flex-col gap-8 py-4">
@@ -179,7 +166,7 @@ export default function Home() {
       )}
 
       {/* ② 실시간 미디어 */}
-      {breakingNews.length > 0 && (
+      {media.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Newspaper size={20} className="text-brand" />
@@ -188,8 +175,8 @@ export default function Home() {
             </h2>
           </div>
           <div className="flex flex-col gap-2">
-            {breakingNews.map((news, idx) => (
-              <BreakingNewsCard key={idx} data={news} />
+            {media.map((item, idx) => (
+              <BreakingNewsCard key={item.mediaId ?? idx} data={item} />
             ))}
           </div>
         </section>
@@ -209,28 +196,11 @@ export default function Home() {
               <IssueCard key={room.chatRoomId} data={room} />
             ))}
           </div>
-
-          {/* 더보기 */}
-          {hasMore && (
-            <button
-              type="button"
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="mt-4 w-full py-3 rounded-xl border border-border text-body-14 font-medium text-text-secondary hover:bg-surface-elevated transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              {loadingMore ? "불러오는 중..." : "더보기"}
-            </button>
-          )}
-          {error && (
-            <p className="mt-2 text-center text-caption-12 text-red">
-              {error}
-            </p>
-          )}
         </section>
       )}
 
       {/* ④ 이런 이슈는 어때요? (가로 스크롤) */}
-      {bestIssues.length > 0 && (
+      {issueRooms.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Lightbulb size={20} className="text-brand" />
@@ -239,7 +209,7 @@ export default function Home() {
             </h2>
           </div>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {bestIssues.map((issue) => (
+            {issueRooms.map((issue) => (
               <IssueCardNew key={issue.issueId} data={issue} />
             ))}
           </div>
