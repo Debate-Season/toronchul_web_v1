@@ -228,7 +228,24 @@ export default function Home() {
         </section>
       )}
 
-      {/* ② 실시간 미디어 */}
+      {/* ② 이런 이슈는 어때요? (가로 스크롤) */}
+      {issueRooms.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Lightbulb size={20} className="text-brand" />
+            <h2 className="text-header-20 font-bold text-text-primary">
+              이런 이슈는 어때요?
+            </h2>
+          </div>
+          <HorizontalCarousel>
+            {issueRooms.map((issue) => (
+              <IssueCardNew key={issue.issueId} data={issue} />
+            ))}
+          </HorizontalCarousel>
+        </section>
+      )}
+
+      {/* ③ 실시간 미디어 */}
       {media.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
@@ -245,7 +262,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* ③ 뜨겁게 논쟁 중인 찬반토론 (세로 리스트) */}
+      {/* ④ 뜨겁게 논쟁 중인 찬반토론 (세로 리스트) */}
       {chatRooms.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
@@ -259,23 +276,6 @@ export default function Home() {
               <IssueCard key={room.chatRoomId} data={room} />
             ))}
           </div>
-        </section>
-      )}
-
-      {/* ④ 이런 이슈는 어때요? (가로 스크롤) */}
-      {issueRooms.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Lightbulb size={20} className="text-brand" />
-            <h2 className="text-header-20 font-bold text-text-primary">
-              이런 이슈는 어때요?
-            </h2>
-          </div>
-          <HorizontalCarousel>
-            {issueRooms.map((issue) => (
-              <IssueCardNew key={issue.issueId} data={issue} />
-            ))}
-          </HorizontalCarousel>
         </section>
       )}
 

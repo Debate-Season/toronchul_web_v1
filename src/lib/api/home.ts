@@ -90,6 +90,17 @@ export async function fetchMedia(
   return toArray(obj.items ?? obj.media ?? obj.mediaList);
 }
 
+/**
+ * 인기 토론방 목록 (사이드바용)
+ * Swagger: GET /api/v1/home/recommend → top5BestChatRooms
+ */
+export async function fetchBestChatRooms(
+  token?: string | null,
+): Promise<BestChatRoom[]> {
+  const raw = await apiFetch<Record<string, unknown>>(`/api/v1/home/recommend`, { token });
+  return toArray(raw.top5BestChatRooms ?? raw.bestChatRooms);
+}
+
 // ── Helpers ───────────────────────────────────────
 
 function toArray<T = unknown>(val: unknown): T[] {
