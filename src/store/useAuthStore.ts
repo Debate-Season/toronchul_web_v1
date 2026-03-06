@@ -50,11 +50,19 @@ const useAuthStore = create<AuthState & AuthActions>()(
     }),
     {
       name: "auth-storage",
-      onRehydrateStorage: () => () => {
-        useAuthStore.setState({ _hasHydrated: true });
-      },
     },
   ),
 );
+
+// zustand v5: persist.onFinishHydration으로 hydration 완료 감지
+if (typeof window !== "undefined") {
+  useAuthStore.persist.onFinishHydration(() => {
+    useAuthStore.setState({ _hasHydrated: true });
+  });
+  // 이미 hydration이 끝난 경우 대비
+  if (useAuthStore.persist.hasHydrated()) {
+    useAuthStore.setState({ _hasHydrated: true });
+  }
+}
 
 export default useAuthStore;

@@ -20,7 +20,7 @@ export default function IssueCard({ data }: { data: ChatRoomResponse }) {
 
   return (
     <Link href={`/room/${data.chatRoomId}`}>
-      <article className="rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg hover:border-grey-70">
+      <article className="rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70">
         {/* 제목 */}
         <h3 className="text-body-16 font-semibold text-text-primary mb-1 line-clamp-2">
           {data.title}

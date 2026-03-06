@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { IssueRoom } from "@/lib/api/home";
+import { issueHref } from "@/lib/slug";
 
 // ── IssueCardNew ──────────────────────────────────
 export default function IssueCardNew({ data }: { data: IssueRoom }) {
   return (
-    <Link href={`/issue/${data.issueId}`}>
-      <article className="flex-shrink-0 w-56 rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg hover:border-grey-70">
+    <Link href={issueHref(data.issueId, data.title)}>
+      <article className="flex-shrink-0 w-56 rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70">
         {/* 제목 */}
         <h3 className="text-body-14 font-semibold text-text-primary mb-3 line-clamp-2 min-h-[2.625rem]">
           {data.title}

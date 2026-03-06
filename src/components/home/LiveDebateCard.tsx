@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Radio } from "lucide-react";
 import type { BestChatRoom } from "@/lib/api/home";
+import { roomHref } from "@/lib/slug";
 
 export default function LiveDebateCard({ data }: { data: BestChatRoom }) {
   return (
-    <Link href={`/room/${data.debateId}`}>
-      <article className="flex-shrink-0 w-64 rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-lg hover:border-grey-70">
+    <Link href={roomHref(data.issueId, data.issueTitle, data.debateId, data.debateTitle)}>
+      <article className="flex-shrink-0 w-64 rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70">
         {/* LIVE 배지 */}
         <div className="flex items-center gap-1.5 mb-2">
           <Radio size={14} className="text-red" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import IssueCard from "@/components/home/IssueCard";
 import IssueCardNew from "@/components/home/IssueCardNew";
 import LiveDebateCard from "@/components/home/LiveDebateCard";
@@ -14,7 +14,7 @@ import {
   type MediaItem,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
-import { Radio, Newspaper, Flame, Lightbulb } from "lucide-react";
+import { Radio, Newspaper, Flame, Lightbulb, ChevronLeft, ChevronRight } from "lucide-react";
 
 // ── Skeleton ─────────────────────────────────────
 function SkeletonShell() {
@@ -68,6 +68,70 @@ function SkeletonShell() {
   );
 }
 
+// ── 가로 스크롤 캐러셀 ──────────────────────────────
+function HorizontalCarousel({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    checkScroll();
+    el.addEventListener("scroll", checkScroll, { passive: true });
+    return () => el.removeEventListener("scroll", checkScroll);
+  }, [checkScroll]);
+
+  const scroll = (dir: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.7;
+    el.scrollBy({ left: dir === "left" ? -amount : amount, behavior: "smooth" });
+  };
+
+  return (
+    <div className="relative">
+      {canScrollLeft && (
+        <button
+          type="button"
+          onClick={() => scroll("left")}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-grey-80 text-text-primary shadow-md hover:bg-grey-70 transition-colors cursor-pointer"
+        >
+          <ChevronLeft size={18} />
+        </button>
+      )}
+
+      <div
+        ref={scrollRef}
+        className="flex gap-3 overflow-x-auto pb-2 scrollbar-grey scroll-smooth"
+      >
+        {children}
+      </div>
+
+      {canScrollRight && (
+        <button
+          type="button"
+          onClick={() => scroll("right")}
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-grey-80 text-text-primary shadow-md hover:bg-grey-70 transition-colors cursor-pointer"
+        >
+          <ChevronRight size={18} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────
 export default function Home() {
   const { accessToken, _hasHydrated } = useAuthStore();
@@ -90,7 +154,6 @@ export default function Home() {
         setLoading(true);
         setError(null);
 
-        // Optional Auth: token이 없어도 API 호출 가능
         const [homeData, mediaData] = await Promise.all([
           fetchHome(accessToken),
           fetchMedia(accessToken).catch(() => [] as MediaItem[]),
@@ -157,11 +220,11 @@ export default function Home() {
               실시간 Live
             </h2>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <HorizontalCarousel>
             {bestChatRooms.map((room) => (
               <LiveDebateCard key={room.debateId} data={room} />
             ))}
-          </div>
+          </HorizontalCarousel>
         </section>
       )}
 
@@ -208,11 +271,11 @@ export default function Home() {
               이런 이슈는 어때요?
             </h2>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <HorizontalCarousel>
             {issueRooms.map((issue) => (
               <IssueCardNew key={issue.issueId} data={issue} />
             ))}
-          </div>
+          </HorizontalCarousel>
         </section>
       )}
 
