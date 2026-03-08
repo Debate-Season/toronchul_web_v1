@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Home, Map, User, LogIn, Flame, X } from "lucide-react";
+import { Home, Map, User, LogIn, Flame, X, Download, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,6 +9,7 @@ import {
   type BestChatRoom,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
+import { roomHref } from "@/lib/slug";
 import DeButtonLarge from "@/components/TDS/DeButtonLarge";
 
 // ── 공통 메뉴 (비로그인도 접근 가능) ──────────────────
@@ -127,8 +128,10 @@ function TopBar() {
   return (
     <>
       <header className="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-surface border-b border-border">
-        <Link href="/" className="text-header-18 font-bold text-brand">
-          토론철
+        <Link href="/" className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/img_splash_logo.png" alt="토론철" height={28} style={{ height: 28, width: "auto" }} />
+          <span className="text-header-18 font-bold text-brand">토론철</span>
         </Link>
         {_hasHydrated && !accessToken ? (
           <button
@@ -158,36 +161,54 @@ function TopBar() {
 function LeftSidebar() {
   const pathname = usePathname();
   const { accessToken } = useAuthStore();
+  const [showAppDownload, setShowAppDownload] = useState(false);
 
   const navItems = accessToken
     ? [...PUBLIC_NAV_ITEMS, { href: "/profile", label: "프로필", icon: User } as const]
     : PUBLIC_NAV_ITEMS;
 
   return (
-    <aside className="fixed left-0 top-14 w-64 h-[calc(100vh-3.5rem)] hidden md:block bg-surface border-r border-border overflow-y-auto">
-      <nav className="flex flex-col gap-1 p-3">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-14 font-medium transition-colors ${
-                isActive
-                  ? "bg-grey-90 text-brand"
-                  : "text-text-secondary hover:bg-grey-100 hover:text-text-primary"
-              }`}
-            >
-              <Icon
-                size={20}
-                className={isActive ? "text-brand" : "text-text-secondary"}
-              />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
+    <>
+      <aside className="fixed left-0 top-14 w-64 h-[calc(100vh-3.5rem)] hidden md:flex md:flex-col bg-surface border-r border-border overflow-y-auto">
+        <nav className="flex flex-col gap-1 p-3 flex-1">
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-14 font-medium transition-colors ${
+                  isActive
+                    ? "bg-grey-90 text-brand"
+                    : "text-text-secondary hover:bg-grey-100 hover:text-text-primary"
+                }`}
+              >
+                <Icon
+                  size={20}
+                  className={isActive ? "text-brand" : "text-text-secondary"}
+                />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => setShowAppDownload(true)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-body-14 font-medium text-text-secondary hover:bg-grey-100 hover:text-text-primary transition-colors cursor-pointer w-full"
+          >
+            <Download size={20} />
+            앱 다운로드
+          </button>
+        </div>
+      </aside>
+
+      {showAppDownload && (
+        <AppDownloadModal onClose={() => setShowAppDownload(false)} />
+      )}
+    </>
   );
 }
 
@@ -245,18 +266,23 @@ function RightSidebar() {
           ) : topics.length > 0 ? (
             <ul className="flex flex-col gap-3">
               {topics.map((topic, idx) => (
-                <li key={topic.debateId} className="flex items-start gap-3">
-                  <span className="text-body-14 font-bold text-brand">
-                    {idx + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-body-14 font-medium text-text-primary truncate">
-                      {topic.debateTitle}
-                    </p>
-                    <p className="text-caption-12 text-text-secondary">
-                      {topic.issueTitle}
-                    </p>
-                  </div>
+                <li key={topic.debateId}>
+                  <Link
+                    href={roomHref(topic.issueId, topic.issueTitle, topic.debateId, topic.debateTitle)}
+                    className="flex items-start gap-3 rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-grey-90 cursor-pointer"
+                  >
+                    <span className="text-body-14 font-bold text-brand">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-body-14 font-medium text-text-primary truncate">
+                        {topic.debateTitle}
+                      </p>
+                      <p className="text-caption-12 text-text-secondary">
+                        {topic.issueTitle}
+                      </p>
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -271,33 +297,135 @@ function RightSidebar() {
   );
 }
 
+// ── 앱 다운로드 모달 ──────────────────────────────
+function AppDownloadModal({ onClose }: { onClose: () => void }) {
+  const handleBackdrop = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50"
+      onClick={handleBackdrop}
+    >
+      <div className="relative w-full sm:max-w-sm sm:mx-4 rounded-t-2xl sm:rounded-2xl bg-surface p-6 pb-8">
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+        >
+          <X size={20} />
+        </button>
+
+        <div className="flex items-center gap-3 mb-2">
+          <Smartphone size={24} className="text-brand" />
+          <h2 className="text-header-20 font-bold text-text-primary">앱 다운로드</h2>
+        </div>
+        <p className="text-body-14 text-text-secondary mb-6">
+          토론철 앱에서 더 편리하게 이용하세요
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <a
+            href="https://play.google.com/store/apps/details?id=com.rosyocean.debateseason"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full rounded-xl bg-surface-elevated border border-border py-3.5 text-body-16 font-medium text-text-primary transition-colors hover:bg-grey-90 cursor-pointer"
+          >
+            <GooglePlayIcon />
+            Google Play
+          </a>
+          <a
+            href="https://apps.apple.com/kr/app/%ED%86%A0%EB%A1%A0%EC%B2%A0/id6739631545"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full rounded-xl bg-surface-elevated border border-border py-3.5 text-body-16 font-medium text-text-primary transition-colors hover:bg-grey-90 cursor-pointer"
+          >
+            <AppleIcon />
+            App Store
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GooglePlayIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3.61 1.814A1.82 1.82 0 0 0 3 3.396v17.209a1.82 1.82 0 0 0 .61 1.581l.084.074 9.647-9.647v-.228L3.694 1.74l-.083.074Z" fill="#4285F4"/>
+      <path d="m16.557 15.828-3.215-3.216v-.228l3.216-3.216.072.042 3.81 2.164c1.088.618 1.088 1.63 0 2.249l-3.81 2.164-.073.041Z" fill="#FBBC04"/>
+      <path d="m16.63 15.787-3.288-3.289L3.61 22.23c.36.38.951.426 1.618.048l11.4-6.49" fill="#EA4335"/>
+      <path d="m16.63 8.21-11.4-6.49c-.668-.378-1.26-.332-1.619.049l9.731 9.73 3.288-3.288Z" fill="#34A853"/>
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11Z"/>
+    </svg>
+  );
+}
+
 // ── Bottom Nav (모바일) ────────────────────────────
 function BottomNav() {
   const pathname = usePathname();
   const { accessToken } = useAuthStore();
+  const [showAppDownload, setShowAppDownload] = useState(false);
 
   const navItems = accessToken
     ? [...PUBLIC_NAV_ITEMS, { href: "/profile", label: "프로필", icon: User } as const]
     : PUBLIC_NAV_ITEMS;
 
   return (
-    <nav className="fixed bottom-0 left-0 w-full h-16 z-50 flex items-center justify-around bg-surface border-t border-border md:hidden">
-      {navItems.map(({ href, label, icon: Icon }) => {
-        const isActive = pathname === href;
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={`flex flex-col items-center gap-1 text-caption-12 font-medium transition-colors ${
-              isActive ? "text-brand" : "text-text-secondary"
-            }`}
-          >
-            <Icon size={22} />
-            {label}
-          </Link>
-        );
-      })}
-    </nav>
+    <>
+      <nav className="fixed bottom-0 left-0 w-full h-16 z-50 flex items-center justify-around bg-surface border-t border-border md:hidden">
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex flex-col items-center gap-1 text-caption-12 font-medium transition-colors ${
+                isActive ? "text-brand" : "text-text-secondary"
+              }`}
+            >
+              <Icon size={22} />
+              {label}
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setShowAppDownload(true)}
+          className="flex flex-col items-center gap-1 text-caption-12 font-medium text-text-secondary transition-colors cursor-pointer"
+        >
+          <Download size={22} />
+          앱 다운로드
+        </button>
+      </nav>
+
+      {showAppDownload && (
+        <AppDownloadModal onClose={() => setShowAppDownload(false)} />
+      )}
+    </>
   );
 }
 
