@@ -12,6 +12,7 @@ import {
   type BestChatRoom,
   type ChatRoomResponse,
   type MediaItem,
+  type MediaResponse,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
 import { Radio, Newspaper, Flame, Lightbulb, ChevronLeft, ChevronRight } from "lucide-react";
@@ -132,6 +133,151 @@ function HorizontalCarousel({
   );
 }
 
+// ── 실시간 미디어 (커서 기반 무한 스크롤) ──────────────
+
+function MediaSection({
+  initialMedia,
+  selectedCategory,
+  onCategoryChange,
+  token,
+}: {
+  initialMedia: MediaItem[];
+  selectedCategory: string | null;
+  onCategoryChange: (cat: string | null) => void;
+  token: string | null;
+}) {
+  const [allMedia, setAllMedia] = useState<MediaItem[]>(initialMedia);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(initialMedia.length > 0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadingRef = useRef(false);
+
+  // initialMedia가 바뀌면 리셋
+  useEffect(() => {
+    setAllMedia(initialMedia);
+    setHasMore(initialMedia.length > 0);
+  }, [initialMedia]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || !hasMore) return;
+    loadingRef.current = true;
+    setLoadingMore(true);
+
+    try {
+      const lastItem = allMedia[allMedia.length - 1];
+      const cursor = lastItem?.outdated;
+      if (!cursor) {
+        setHasMore(false);
+        return;
+      }
+
+      const res = await fetchMedia(token, cursor);
+      const newItems = res.items.filter(
+        (item) => !allMedia.some((m) => m.mediaId === item.mediaId),
+      );
+
+      if (newItems.length === 0) {
+        setHasMore(false);
+      } else {
+        setAllMedia((prev) => [...prev, ...newItems]);
+      }
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+      loadingRef.current = false;
+    }
+  }, [allMedia, hasMore, token]);
+
+  // IntersectionObserver로 하단 감지 → API 추가 호출
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "300px" },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  const categories = Array.from(
+    new Set(
+      allMedia.map((m) => m.category).filter((c): c is string => !!c),
+    ),
+  );
+  const filtered = selectedCategory
+    ? allMedia.filter((m) => m.category === selectedCategory)
+    : allMedia;
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-4">
+        <Newspaper size={20} className="text-brand" />
+        <h2 className="text-header-20 font-bold text-text-primary">
+          실시간 미디어
+        </h2>
+      </div>
+
+      {categories.length > 0 && (
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-grey">
+          <button
+            type="button"
+            onClick={() => onCategoryChange(null)}
+            className={`flex-shrink-0 rounded-full px-3 py-1.5 text-body-14 font-medium transition-colors cursor-pointer ${
+              selectedCategory === null
+                ? "bg-brand text-white"
+                : "bg-grey-90 text-text-secondary hover:bg-grey-80"
+            }`}
+          >
+            전체
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() =>
+                onCategoryChange(selectedCategory === cat ? null : cat)
+              }
+              className={`flex-shrink-0 rounded-full px-3 py-1.5 text-body-14 font-medium transition-colors cursor-pointer ${
+                selectedCategory === cat
+                  ? "bg-brand text-white"
+                  : "bg-grey-90 text-text-secondary hover:bg-grey-80"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4">
+        {filtered.map((item, idx) => (
+          <BreakingNewsCard key={item.mediaId ?? idx} data={item} />
+        ))}
+        {filtered.length === 0 && !loadingMore && (
+          <p className="text-body-14 text-text-secondary text-center py-4">
+            해당 카테고리의 미디어가 없습니다.
+          </p>
+        )}
+        {loadingMore && (
+          <div className="flex justify-center py-4">
+            <div className="h-6 w-6 rounded-full border-2 border-grey-80 border-t-brand animate-spin" />
+          </div>
+        )}
+      </div>
+
+      {hasMore && <div ref={sentinelRef} className="h-1" />}
+    </section>
+  );
+}
+
 // ── Page ──────────────────────────────────────────
 export default function Home() {
   const { accessToken, _hasHydrated } = useAuthStore();
@@ -139,7 +285,8 @@ export default function Home() {
   const [issueRooms, setIssueRooms] = useState<IssueRoom[]>([]);
   const [bestChatRooms, setBestChatRooms] = useState<BestChatRoom[]>([]);
   const [chatRooms, setChatRooms] = useState<ChatRoomResponse[]>([]);
-  const [media, setMedia] = useState<MediaItem[]>([]);
+  const [mediaResponse, setMediaResponse] = useState<MediaResponse>({ youtubeLive: [], items: [] });
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
@@ -156,14 +303,14 @@ export default function Home() {
 
         const [homeData, mediaData] = await Promise.all([
           fetchHome(accessToken),
-          fetchMedia(accessToken).catch(() => [] as MediaItem[]),
+          fetchMedia(accessToken).catch(() => ({ youtubeLive: [], items: [] } as MediaResponse)),
         ]);
 
         if (!cancelled) {
           setIssueRooms(homeData.issueRooms);
           setBestChatRooms(homeData.bestChatRooms);
           setChatRooms(homeData.chatRooms);
-          setMedia(mediaData);
+          setMediaResponse(mediaData);
         }
       } catch (err) {
         if (!cancelled) {
@@ -203,6 +350,7 @@ export default function Home() {
     );
   }
 
+  const media = mediaResponse.items;
   const hasAnyData =
     bestChatRooms.length > 0 ||
     media.length > 0 ||
@@ -247,19 +395,12 @@ export default function Home() {
 
       {/* ③ 실시간 미디어 */}
       {media.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Newspaper size={20} className="text-brand" />
-            <h2 className="text-header-20 font-bold text-text-primary">
-              실시간 미디어
-            </h2>
-          </div>
-          <div className="flex flex-col gap-2">
-            {media.map((item, idx) => (
-              <BreakingNewsCard key={item.mediaId ?? idx} data={item} />
-            ))}
-          </div>
-        </section>
+        <MediaSection
+          initialMedia={media}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          token={accessToken}
+        />
       )}
 
       {/* ④ 뜨겁게 논쟁 중인 찬반토론 (세로 리스트) */}

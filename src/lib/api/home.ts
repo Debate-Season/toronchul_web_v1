@@ -36,6 +36,18 @@ export interface MediaItem {
   type?: string;
   thumbnailUrl?: string;
   source?: string;
+  category?: string;
+  outdated?: string;
+}
+
+export interface YoutubeLiveItem {
+  id: number;
+  title: string;
+  supplier: string;
+  videoId: string;
+  category: string;
+  createAt: string;
+  src: string;
 }
 
 /** /api/v1/users/home 응답 — 구조가 배열 또는 객체일 수 있음 */
@@ -79,15 +91,42 @@ export async function fetchHome(
  * 미디어 목록
  * Swagger: GET /api/v1/home/media
  */
+export interface MediaResponse {
+  youtubeLive: YoutubeLiveItem[];
+  items: MediaItem[];
+}
+
 export async function fetchMedia(
   token?: string | null,
-): Promise<MediaItem[]> {
-  const raw = await apiFetch<unknown>(`/api/v1/home/media`, { token });
-
-  if (Array.isArray(raw)) return raw;
+  time?: string,
+): Promise<MediaResponse> {
+  const params = time ? `?time=${encodeURIComponent(time)}` : "";
+  const raw = await apiFetch<unknown>(`/api/v1/home/media${params}`, { token });
 
   const obj = raw as Record<string, unknown>;
-  return toArray(obj.items ?? obj.media ?? obj.mediaList);
+
+  // youtubeLiveContainer는 객체 형태 → 배열로 변환
+  const liveContainer = obj.youtubeLiveContainer as
+    | Record<string, YoutubeLiveItem>
+    | undefined;
+  const youtubeLive: YoutubeLiveItem[] = liveContainer
+    ? Object.values(liveContainer)
+    : [];
+
+  // items 배열 — 필드명 매핑 (src → thumbnailUrl, supplier → source)
+  const rawItems = toArray<Record<string, unknown>>(obj.items);
+  const items: MediaItem[] = rawItems.map((item) => ({
+    mediaId: item.id as number | undefined,
+    title: item.title as string,
+    url: item.url as string,
+    type: item.type as string | undefined,
+    thumbnailUrl: (item.src ?? item.thumbnailUrl) as string | undefined,
+    source: (item.supplier ?? item.source) as string | undefined,
+    category: item.category as string | undefined,
+    outdated: item.outdated as string | undefined,
+  }));
+
+  return { youtubeLive, items };
 }
 
 /**
