@@ -68,7 +68,21 @@ export async function fetchHome(
   page?: number,
 ): Promise<HomeResponse> {
   const params = page != null ? `?page=${page}` : "";
-  const raw = await apiFetch<unknown>(`/api/v1/users/home${params}`, { token });
+  const path = `/api/v1/users/home${params}`;
+
+  let raw: unknown;
+  try {
+    raw = await apiFetch<unknown>(path, { token });
+  } catch (err) {
+    // 백엔드가 토큰 실은 요청에만 500을 뱉는 케이스(유저 조인/개인화 조회 실패) 방어:
+    // 익명 호출은 정상 응답하므로 한 번만 폴백한다. 개인화 필드(bookMarks 등)는 빠질 수 있음.
+    const msg = err instanceof Error ? err.message : "";
+    if (token && /\b5\d{2}\b/.test(msg)) {
+      raw = await apiFetch<unknown>(path, {});
+    } else {
+      throw err;
+    }
+  }
 
   // 응답 형태에 따라 유연하게 파싱
   if (Array.isArray(raw)) {

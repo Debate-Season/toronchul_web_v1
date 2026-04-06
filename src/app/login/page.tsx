@@ -1,21 +1,7 @@
 "use client";
 
 import DeButtonLarge from "@/components/TDS/DeButtonLarge";
-
-// ── Kakao OAuth ───────────────────────────────────
-function redirectToKakao() {
-  const clientId = process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID;
-  const redirectUri = process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI;
-
-  const url =
-    `https://kauth.kakao.com/oauth/authorize` +
-    `?client_id=${clientId}` +
-    `&redirect_uri=${encodeURIComponent(redirectUri ?? "")}` +
-    `&response_type=code` +
-    `&scope=openid`;
-
-  window.location.href = url;
-}
+import { redirectToKakao } from "@/lib/auth/kakao";
 
 // ── Page ──────────────────────────────────────────
 export default function LoginPage() {

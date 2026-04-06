@@ -14,6 +14,11 @@ export interface LoginResponse {
   termsStatus: boolean;
 }
 
+export interface ReissueResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
 // ── API ───────────────────────────────────────────
 export async function loginWithOidc(
   body: LoginRequest,
@@ -21,5 +26,23 @@ export async function loginWithOidc(
   return apiFetch<LoginResponse>("/api/v2/users/login", {
     method: "POST",
     body: JSON.stringify(body),
+  });
+}
+
+/** 토큰 갱신 — POST /api/v1/auth/reissue */
+export async function reissueToken(
+  refreshToken: string,
+): Promise<ReissueResponse> {
+  return apiFetch<ReissueResponse>("/api/v1/auth/reissue", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken }),
+  });
+}
+
+/** 로그아웃 — POST /api/v1/users/logout */
+export async function logoutFromServer(refreshToken: string): Promise<void> {
+  await apiFetch<unknown>("/api/v1/users/logout", {
+    method: "POST",
+    body: JSON.stringify({ refreshToken }),
   });
 }

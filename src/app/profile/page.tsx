@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import useAuthStore from "@/store/useAuthStore";
+import { performLogout } from "@/lib/auth/logout";
 
 export default function ProfilePage() {
-  const { isLogin, _hasHydrated, logout } = useAuthStore();
+  const { isLogin, _hasHydrated } = useAuthStore();
 
   if (!_hasHydrated) {
     return (
@@ -43,7 +44,7 @@ export default function ProfilePage() {
 
       <button
         type="button"
-        onClick={logout}
+        onClick={performLogout}
         className="self-start rounded-lg border border-border px-4 py-2 text-body-14 text-text-secondary transition-colors hover:bg-grey-90 cursor-pointer"
       >
         로그아웃

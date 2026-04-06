@@ -11,27 +11,13 @@ import {
 import useAuthStore from "@/store/useAuthStore";
 import { roomHref } from "@/lib/slug";
 import DeButtonLarge from "@/components/TDS/DeButtonLarge";
+import { redirectToKakao } from "@/lib/auth/kakao";
 
 // ── 공통 메뉴 (비로그인도 접근 가능) ──────────────────
 const PUBLIC_NAV_ITEMS = [
   { href: "/", label: "홈", icon: Home },
   { href: "/map", label: "이슈맵", icon: Map },
 ] as const;
-
-// ── Kakao OAuth ───────────────────────────────────
-function redirectToKakao() {
-  const clientId = process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID;
-  const redirectUri = process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI;
-
-  const url =
-    `https://kauth.kakao.com/oauth/authorize` +
-    `?client_id=${clientId}` +
-    `&redirect_uri=${encodeURIComponent(redirectUri ?? "")}` +
-    `&response_type=code` +
-    `&scope=openid`;
-
-  window.location.href = url;
-}
 
 function KakaoIcon() {
   return (

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CMD=$(jq -r '.tool_input.command // \"\"'); if echo \"$CMD\" | grep -qE '(^|[;&|])\\s*git\\s+commit(\\s|$)'; then cd \"$CLAUDE_PROJECT_DIR\" && (npm run lint 2>&1 | tail -60) && echo '[pre-commit hook] lint passed' || { echo '[pre-commit hook] npm run lint failed — commit blocked. Fix lint errors or ask the user to bypass.' >&2; exit 2; }; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

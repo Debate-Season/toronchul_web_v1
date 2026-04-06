@@ -21,6 +21,9 @@ interface ApiResponse<T> {
   data: T;
 }
 
+/** 토큰 갱신 중복 요청 방지 */
+let refreshPromise: Promise<string | null> | null = null;
+
 /**
  * 인증 헤더를 자동 첨부하는 fetch 래퍼.
  * token이 주어지면 Authorization: Bearer {token}을 추가한다.
@@ -63,6 +66,18 @@ export async function apiFetch<T>(
     clearTimeout(timer);
   }
 
+  // ── 401 → refresh → retry ──────────────────────
+  if (res.status === 401 && token && !path.includes("/auth/reissue")) {
+    const newToken = await handleTokenRefresh();
+    if (newToken) {
+      return apiFetch<T>(path, { ...options, token: newToken });
+    }
+    // refresh 실패 → 로그아웃
+    const { performLogout } = await import("@/lib/auth/logout");
+    await performLogout();
+    throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     const code = body?.code ?? res.status;
@@ -72,4 +87,29 @@ export async function apiFetch<T>(
 
   const json: ApiResponse<T> = await res.json();
   return json.data;
+}
+
+/** 토큰 갱신 처리. 동시 여러 요청이 401을 받아도 갱신은 1회만 수행. */
+async function handleTokenRefresh(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const { default: useAuthStore } = await import("@/store/useAuthStore");
+      const { refreshToken } = useAuthStore.getState();
+      if (!refreshToken) return null;
+
+      const { reissueToken } = await import("@/lib/api/auth");
+      const result = await reissueToken(refreshToken);
+
+      useAuthStore.getState().setTokens(result.accessToken, result.refreshToken);
+      return result.accessToken;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
