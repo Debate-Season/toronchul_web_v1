@@ -52,8 +52,8 @@
      ```
    - **Return URLs**:
      ```
-     https://toronchul.app/oauth/callback/apple
-     http://localhost:3000/oauth/callback/apple
+     https://toronchul.app/api/auth/apple/callback
+     http://localhost:3000/api/auth/apple/callback
      ```
    - **Save** 클릭
 10. 상단 **Continue** → **Save**
@@ -107,13 +107,13 @@
 ```env
 # ── Apple OAuth ───────────────────────────────────
 NEXT_PUBLIC_APPLE_CLIENT_ID=com.rosyocean.debateseason.web
-NEXT_PUBLIC_APPLE_REDIRECT_URI=http://localhost:3000/oauth/callback/apple
+NEXT_PUBLIC_APPLE_REDIRECT_URI=http://localhost:3000/api/auth/apple/callback
 ```
 
 ### 운영 (배포 플랫폼)
 ```env
 NEXT_PUBLIC_APPLE_CLIENT_ID=com.rosyocean.debateseason.web
-NEXT_PUBLIC_APPLE_REDIRECT_URI=https://toronchul.app/oauth/callback/apple
+NEXT_PUBLIC_APPLE_REDIRECT_URI=https://toronchul.app/api/auth/apple/callback
 ```
 
 ---
@@ -130,13 +130,13 @@ NEXT_PUBLIC_APPLE_REDIRECT_URI=https://toronchul.app/oauth/callback/apple
     ?client_id=com.rosyocean.debateseason.web
     &redirect_uri=http://localhost:3000/oauth/callback/apple
     &response_type=code id_token
-    &response_mode=fragment
+    &response_mode=form_post
     &scope=name email
   ```
 
-### 4-2. 콜백 페이지 생성
-- `src/app/oauth/callback/apple/page.tsx` 생성
-- URL fragment(`#`)에서 `id_token` 추출
+### 4-2. 콜백 Route Handler + 페이지 생성
+- `src/app/oauth/callback/apple/route.ts` — Apple `form_post` POST 수신 → query param GET 리다이렉트
+- `src/app/oauth/callback/apple/page.tsx` — `useSearchParams()`에서 `id_token` 추출
 - `loginWithOidc({ socialType: "apple", idToken })` 호출
 - 성공 시 홈으로 이동
 
@@ -169,10 +169,12 @@ NEXT_PUBLIC_APPLE_REDIRECT_URI=https://toronchul.app/oauth/callback/apple
 - [ ] Apple id_token 검증 로직 구현
 - [ ] 웹 Services ID를 허용 client_id로 등록
 
-### 프론트엔드
-- [ ] 환경 변수 추가 (.env.local + 운영)
-- [ ] `/oauth/callback/apple` 콜백 페이지 생성
-- [ ] 로그인 모달/페이지 Apple 버튼 활성화
+### 프론트엔드 ✅ (2026-04-08 코드 완료)
+- [ ] 환경 변수 추가 (.env.local + 운영) — Apple Developer 설정 후
+- [x] `src/lib/auth/apple.ts` — `redirectToApple()`, `verifyAppleOAuthState()`
+- [x] `src/app/api/auth/apple/callback/route.ts` — form_post POST → GET 리다이렉트
+- [x] `src/app/oauth/callback/apple/page.tsx` — 클라이언트 콜백 페이지
+- [x] 로그인 모달/페이지 Apple 버튼 활성화
 
 ### 테스트
 - [ ] 로컬에서 Apple 로그인 → 홈 이동 확인
