@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { loginWithOidc } from "@/lib/api/auth";
 import useAuthStore from "@/store/useAuthStore";
 import { verifyAppleOAuthState } from "@/lib/auth/apple";
+import { nextAfterLogin } from "@/lib/auth/postLoginRedirect";
 
 export default function AppleCallbackPage() {
   return (
@@ -90,7 +91,7 @@ function AppleCallbackContent() {
       setProfileStatus(result.profileStatus);
       setTermsStatus(result.termsStatus);
 
-      router.push("/");
+      router.push(nextAfterLogin(result.termsStatus, result.profileStatus));
     } catch (err) {
       if (cancelled.current) return;
       setError(toUserMessage(err));

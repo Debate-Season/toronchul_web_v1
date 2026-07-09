@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { loginWithOidc } from "@/lib/api/auth";
 import useAuthStore from "@/store/useAuthStore";
 import { verifyOAuthState, exchangeCodeForIdToken } from "@/lib/auth/kakao";
+import { nextAfterLogin } from "@/lib/auth/postLoginRedirect";
 
 export default function KakaoCallbackPage() {
   return (
@@ -79,7 +80,7 @@ function KakaoCallbackContent() {
       setProfileStatus(result.profileStatus);
       setTermsStatus(result.termsStatus);
 
-      router.push("/");
+      router.push(nextAfterLogin(result.termsStatus, result.profileStatus));
     } catch (err) {
       setError(toUserMessage(err));
     }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Home, Map, User, LogIn, Flame, X, Download, Smartphone } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   fetchBestChatRooms,
   type BestChatRoom,
@@ -126,6 +126,7 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 
 // ── Top Bar ────────────────────────────────────────
 function TopBar() {
+  const router = useRouter();
   const { accessToken, _hasHydrated } = useAuthStore();
   const [showLogin, setShowLogin] = useState(false);
 
@@ -147,12 +148,14 @@ function TopBar() {
             로그인
           </button>
         ) : (
-          <Link
-            href="/profile"
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors"
+          <button
+            type="button"
+            onClick={() => router.push("/profile")}
+            aria-label="프로필"
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
           >
             <User size={20} className="text-text-secondary" />
-          </Link>
+          </button>
         )}
       </header>
 
@@ -164,12 +167,10 @@ function TopBar() {
 // ── Left Sidebar (LNB) ────────────────────────────
 function LeftSidebar() {
   const pathname = usePathname();
-  const { accessToken } = useAuthStore();
   const [showAppDownload, setShowAppDownload] = useState(false);
 
-  const navItems = accessToken
-    ? [...PUBLIC_NAV_ITEMS, { href: "/profile", label: "프로필", icon: User } as const]
-    : PUBLIC_NAV_ITEMS;
+  // 프로필은 우측 상단 아이콘(다이얼로그)으로 접근. 좌측 메뉴에서는 제외.
+  const navItems = PUBLIC_NAV_ITEMS;
 
   return (
     <>
@@ -383,12 +384,10 @@ function GooglePlayIcon() {
 // ── Bottom Nav (모바일) ────────────────────────────
 function BottomNav() {
   const pathname = usePathname();
-  const { accessToken } = useAuthStore();
   const [showAppDownload, setShowAppDownload] = useState(false);
 
-  const navItems = accessToken
-    ? [...PUBLIC_NAV_ITEMS, { href: "/profile", label: "프로필", icon: User } as const]
-    : PUBLIC_NAV_ITEMS;
+  // 프로필은 우측 상단 아이콘(다이얼로그)으로 접근. 하단 탭에서는 제외.
+  const navItems = PUBLIC_NAV_ITEMS;
 
   return (
     <>
