@@ -125,41 +125,53 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 }
 
 // ── Top Bar ────────────────────────────────────────
-function TopBar() {
+// minimal: 온보딩용. 로고만 표시하고 홈 이동·프로필·로그인 액션 없음.
+function TopBar({ minimal = false }: { minimal?: boolean }) {
   const router = useRouter();
   const { accessToken, _hasHydrated } = useAuthStore();
   const [showLogin, setShowLogin] = useState(false);
 
+  const logo = (
+    <span className="flex items-center gap-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/images/img_splash_logo.png" alt="토론철" height={28} style={{ height: 28, width: "auto" }} />
+      <span className="text-header-18 font-bold text-brand">토론철</span>
+    </span>
+  );
+
   return (
     <>
       <header className="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-surface border-b border-border">
-        <Link href="/" className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/img_splash_logo.png" alt="토론철" height={28} style={{ height: 28, width: "auto" }} />
-          <span className="text-header-18 font-bold text-brand">토론철</span>
-        </Link>
-        {_hasHydrated && !accessToken ? (
-          <button
-            type="button"
-            onClick={() => setShowLogin(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-body-14 font-semibold text-white transition-colors hover:opacity-90 cursor-pointer"
-          >
-            <LogIn size={16} />
-            로그인
-          </button>
+        {minimal ? (
+          logo
         ) : (
-          <button
-            type="button"
-            onClick={() => router.push("/profile")}
-            aria-label="프로필"
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
-          >
-            <User size={20} className="text-text-secondary" />
-          </button>
+          <Link href="/" className="flex items-center gap-2">
+            {logo}
+          </Link>
         )}
+        {!minimal &&
+          (_hasHydrated && !accessToken ? (
+            <button
+              type="button"
+              onClick={() => setShowLogin(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-body-14 font-semibold text-white transition-colors hover:opacity-90 cursor-pointer"
+            >
+              <LogIn size={16} />
+              로그인
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.push("/profile")}
+              aria-label="프로필"
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
+            >
+              <User size={20} className="text-text-secondary" />
+            </button>
+          ))}
       </header>
 
-      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+      {!minimal && showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
     </>
   );
 }
@@ -455,12 +467,16 @@ export default function RedditLayout({
 }) {
   const pathname = usePathname();
 
-  // 신규 가입 온보딩은 좌/우 사이드바·탑바·하단탭 없는 별도 전체화면 페이지.
+  // 신규 가입 온보딩은 좌/우 사이드바·하단탭 없는 별도 전체화면 페이지.
+  // 상단 바는 로고만(홈 이동·프로필·로그인 액션 없음) 유지.
   if (pathname.startsWith("/onboarding")) {
     return (
-      <main className="min-h-screen flex justify-center">
-        <div className="max-w-2xl w-full">{children}</div>
-      </main>
+      <>
+        <TopBar minimal />
+        <main className="pt-14 min-h-screen flex justify-center">
+          <div className="max-w-2xl w-full p-4">{children}</div>
+        </main>
+      </>
     );
   }
 
