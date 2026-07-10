@@ -12,6 +12,7 @@ import useAuthStore from "@/store/useAuthStore";
 import { roomHref } from "@/lib/slug";
 import { redirectToKakao } from "@/lib/auth/kakao";
 import { redirectToApple } from "@/lib/auth/apple";
+import ProfileDialog from "@/components/profile/ProfileDialog";
 
 // ── 공통 메뉴 (비로그인도 접근 가능) ──────────────────
 const PUBLIC_NAV_ITEMS = [
@@ -128,9 +129,9 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 // minimal: 온보딩용. 로고는 홈 이동 비활성화, 로그인 버튼 없음.
 // 단, 프로필 아이콘은 노출해 온보딩 도중에도 로그아웃 경로(/profile)를 제공.
 function TopBar({ minimal = false }: { minimal?: boolean }) {
-  const router = useRouter();
   const { accessToken, _hasHydrated } = useAuthStore();
   const [showLogin, setShowLogin] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const logo = (
     <span className="flex items-center gap-2">
@@ -140,10 +141,11 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
     </span>
   );
 
+  // 라우트 이동이 아니라 현재 페이지 위에 모달로 연다.
   const profileButton = (
     <button
       type="button"
-      onClick={() => router.push("/profile")}
+      onClick={() => setShowProfile(true)}
       aria-label="프로필"
       className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
     >
@@ -178,6 +180,7 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
       </header>
 
       {!minimal && showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+      {showProfile && <ProfileDialog onClose={() => setShowProfile(false)} />}
     </>
   );
 }
@@ -454,8 +457,6 @@ function OnboardingGuard() {
     if (!_hasHydrated || !isLogin) return;
     // 로그인/OAuth 콜백은 자체적으로 리다이렉트 처리하므로 제외
     if (pathname.startsWith("/login") || pathname.startsWith("/oauth")) return;
-    // /profile 은 온보딩 미완료 계정의 로그아웃 탈출구이므로 가드에서 제외
-    if (pathname === "/profile") return;
 
     if (termsStatus === false) {
       router.replace("/onboarding/terms");
