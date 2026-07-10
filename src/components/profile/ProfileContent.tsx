@@ -91,6 +91,27 @@ export default function ProfileContent({
   if (loading) return <ProfileSkeleton />;
 
   if (error || !profile) {
+    // 프로필 미등록(온보딩 미완료) 계정: 재시도가 아니라 로그아웃 유도
+    const noProfile = error?.includes("NOT_FOUND_PROFILE") ?? false;
+
+    if (noProfile) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 py-20">
+          <p className="text-body-16 font-medium text-text-primary">
+            프로필 입력을 완료해주세요.
+          </p>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-body-14 text-text-secondary transition-colors hover:bg-grey-90 cursor-pointer"
+          >
+            <LogOut size={16} />
+            로그아웃
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-body-14 text-red">

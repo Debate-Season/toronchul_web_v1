@@ -9,7 +9,8 @@ import ProfileForm from "@/components/profile/ProfileForm";
 /** 신규 가입 온보딩 — 프로필 생성(POST). 완료 시 이미지(색상) 선택으로. */
 export default function OnboardingProfilePage() {
   const router = useRouter();
-  const { accessToken, isLogin, _hasHydrated } = useAuthStore();
+  const { accessToken, isLogin, _hasHydrated, setProfileStatus } =
+    useAuthStore();
 
   useEffect(() => {
     if (!_hasHydrated) return;
@@ -37,7 +38,11 @@ export default function OnboardingProfilePage() {
         mode="create"
         initial={null}
         token={accessToken}
-        onDone={() => router.replace("/profile/image?onboarding=1")}
+        onDone={() => {
+          // 프로필 생성 완료 → 재진입 시 온보딩 가드가 다시 잡지 않도록 상태 반영
+          setProfileStatus(true);
+          router.replace("/onboarding/image");
+        }}
       />
     </div>
   );

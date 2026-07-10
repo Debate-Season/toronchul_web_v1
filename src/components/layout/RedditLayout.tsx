@@ -424,14 +424,49 @@ function BottomNav() {
   );
 }
 
+// ── 온보딩 미완료 가드 ─────────────────────────────
+// 로그인했지만 약관/프로필 미완료(status === false)면 온보딩으로 강제 이동.
+// 페이지 이탈 후 재진입·다른 세션·재로그인 등 어떤 경로로 들어와도 동작.
+function OnboardingGuard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { _hasHydrated, isLogin, termsStatus, profileStatus } = useAuthStore();
+
+  useEffect(() => {
+    if (!_hasHydrated || !isLogin) return;
+    // 로그인/OAuth 콜백은 자체적으로 리다이렉트 처리하므로 제외
+    if (pathname.startsWith("/login") || pathname.startsWith("/oauth")) return;
+
+    if (termsStatus === false) {
+      router.replace("/onboarding/terms");
+    } else if (profileStatus === false) {
+      router.replace("/onboarding/profile");
+    }
+  }, [_hasHydrated, isLogin, termsStatus, profileStatus, pathname, router]);
+
+  return null;
+}
+
 // ── RedditLayout (조립) ───────────────────────────
 export default function RedditLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+
+  // 신규 가입 온보딩은 좌/우 사이드바·탑바·하단탭 없는 별도 전체화면 페이지.
+  if (pathname.startsWith("/onboarding")) {
+    return (
+      <main className="min-h-screen flex justify-center">
+        <div className="max-w-2xl w-full">{children}</div>
+      </main>
+    );
+  }
+
   return (
     <>
+      <OnboardingGuard />
       <TopBar />
       <LeftSidebar />
       <RightSidebar />
