@@ -38,10 +38,11 @@ function AppleCallbackContent() {
     return () => { cancelled.current = true; };
   }, []);
 
-  // 이미 로그인 상태면 홈으로
+  // 이미 로그인 상태로 콜백에 진입한 경우만 홈으로.
+  // 이번 콜백에서 방금 로그인(setTokens)한 경우는 제외해야 온보딩 분기가 유지됨.
   useEffect(() => {
     if (!_hasHydrated) return;
-    if (isLogin) router.replace("/");
+    if (isLogin && !processed.current) router.replace("/");
   }, [_hasHydrated, isLogin, router]);
 
   useEffect(() => {
