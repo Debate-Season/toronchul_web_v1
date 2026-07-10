@@ -125,7 +125,8 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 }
 
 // ── Top Bar ────────────────────────────────────────
-// minimal: 온보딩용. 로고만 표시하고 홈 이동·프로필·로그인 액션 없음.
+// minimal: 온보딩용. 로고는 홈 이동 비활성화, 로그인 버튼 없음.
+// 단, 프로필 아이콘은 노출해 온보딩 도중에도 로그아웃 경로(/profile)를 제공.
 function TopBar({ minimal = false }: { minimal?: boolean }) {
   const router = useRouter();
   const { accessToken, _hasHydrated } = useAuthStore();
@@ -139,6 +140,17 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
     </span>
   );
 
+  const profileButton = (
+    <button
+      type="button"
+      onClick={() => router.push("/profile")}
+      aria-label="프로필"
+      className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
+    >
+      <User size={20} className="text-text-secondary" />
+    </button>
+  );
+
   return (
     <>
       <header className="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-surface border-b border-border">
@@ -149,26 +161,20 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
             {logo}
           </Link>
         )}
-        {!minimal &&
-          (_hasHydrated && !accessToken ? (
-            <button
-              type="button"
-              onClick={() => setShowLogin(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-body-14 font-semibold text-white transition-colors hover:opacity-90 cursor-pointer"
-            >
-              <LogIn size={16} />
-              로그인
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => router.push("/profile")}
-              aria-label="프로필"
-              className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
-            >
-              <User size={20} className="text-text-secondary" />
-            </button>
-          ))}
+        {minimal ? (
+          profileButton
+        ) : _hasHydrated && !accessToken ? (
+          <button
+            type="button"
+            onClick={() => setShowLogin(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-body-14 font-semibold text-white transition-colors hover:opacity-90 cursor-pointer"
+          >
+            <LogIn size={16} />
+            로그인
+          </button>
+        ) : (
+          profileButton
+        )}
       </header>
 
       {!minimal && showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
@@ -448,6 +454,8 @@ function OnboardingGuard() {
     if (!_hasHydrated || !isLogin) return;
     // 로그인/OAuth 콜백은 자체적으로 리다이렉트 처리하므로 제외
     if (pathname.startsWith("/login") || pathname.startsWith("/oauth")) return;
+    // /profile 은 온보딩 미완료 계정의 로그아웃 탈출구이므로 가드에서 제외
+    if (pathname === "/profile") return;
 
     if (termsStatus === false) {
       router.replace("/onboarding/terms");
