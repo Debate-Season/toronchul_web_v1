@@ -1,13 +1,11 @@
-"use client";
-
 import ProfileContent from "@/components/profile/ProfileContent";
-import ProfileRouteDialog from "@/components/profile/ProfileRouteDialog";
+import ProfilePageShell from "@/components/profile/ProfilePageShell";
 
-/** /profile 은 프로필 메인을 다이얼로그로 노출한다. */
+/** /profile 직접 진입(새로고침/딥링크) 폴백. 소프트 내비게이션은 @modal 이 인터셉트. */
 export default function ProfilePage() {
   return (
-    <ProfileRouteDialog title="프로필">
+    <ProfilePageShell>
       <ProfileContent showHeading={false} />
-    </ProfileRouteDialog>
+    </ProfilePageShell>
   );
 }

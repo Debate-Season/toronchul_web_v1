@@ -127,8 +127,11 @@ function LoginModal({ onClose }: { onClose: () => void }) {
 
 // ── Top Bar ────────────────────────────────────────
 // minimal: 온보딩용. 로고는 홈 이동 비활성화, 로그인 버튼 없음.
-// 단, 프로필 아이콘은 노출해 온보딩 도중에도 로그아웃 경로(/profile)를 제공.
+// 프로필 아이콘은 노출해 로그아웃 경로를 제공한다.
+// - 일반 화면: /profile 로 이동 → @modal 인터셉트로 현재 페이지 위 모달.
+// - 온보딩: 셸이 달라 배경 깜빡임을 피하려 라우트 이동 없이 클라이언트 모달로 연다.
 function TopBar({ minimal = false }: { minimal?: boolean }) {
+  const router = useRouter();
   const { accessToken, _hasHydrated } = useAuthStore();
   const [showLogin, setShowLogin] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -141,11 +144,10 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
     </span>
   );
 
-  // 라우트 이동이 아니라 현재 페이지 위에 모달로 연다.
-  const profileButton = (
+  const profileButton = (onClick: () => void) => (
     <button
       type="button"
-      onClick={() => setShowProfile(true)}
+      onClick={onClick}
       aria-label="프로필"
       className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
     >
@@ -164,7 +166,7 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
           </Link>
         )}
         {minimal ? (
-          profileButton
+          profileButton(() => setShowProfile(true))
         ) : _hasHydrated && !accessToken ? (
           <button
             type="button"
@@ -175,12 +177,14 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
             로그인
           </button>
         ) : (
-          profileButton
+          profileButton(() => router.push("/profile"))
         )}
       </header>
 
       {!minimal && showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
-      {showProfile && <ProfileDialog onClose={() => setShowProfile(false)} />}
+      {minimal && showProfile && (
+        <ProfileDialog onClose={() => setShowProfile(false)} />
+      )}
     </>
   );
 }

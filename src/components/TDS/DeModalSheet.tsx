@@ -9,6 +9,8 @@ interface DeModalSheetProps {
   children: ReactNode;
   /** 하단 고정 영역 (예: 등록/선택 버튼) */
   footer?: ReactNode;
+  /** 내용과 무관하게 높이를 고정 (프로필 모달처럼 화면 전환 시 크기 유지) */
+  fixedHeight?: boolean;
 }
 
 /**
@@ -20,6 +22,7 @@ export default function DeModalSheet({
   onClose,
   children,
   footer,
+  fixedHeight = false,
 }: DeModalSheetProps) {
   const handleBackdrop = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
@@ -45,7 +48,11 @@ export default function DeModalSheet({
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50"
       onClick={handleBackdrop}
     >
-      <div className="relative flex w-full max-h-[85vh] flex-col rounded-t-2xl bg-surface sm:mx-4 sm:max-w-md sm:rounded-2xl">
+      <div
+        className={`relative flex w-full flex-col rounded-t-2xl bg-surface sm:mx-4 sm:max-w-md sm:rounded-2xl ${
+          fixedHeight ? "h-[85vh] sm:h-[600px] sm:max-h-[85vh]" : "max-h-[85vh]"
+        }`}
+      >
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <h2 className="text-header-18 font-semibold text-text-primary">
             {title}
