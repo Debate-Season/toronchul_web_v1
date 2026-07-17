@@ -1,21 +1,36 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { Children, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import IssueCard from "@/components/home/IssueCard";
 import IssueCardNew from "@/components/home/IssueCardNew";
-import LiveDebateCard from "@/components/home/LiveDebateCard";
+import YoutubeLiveCard from "@/components/home/YoutubeLiveCard";
+import RecommendDebateCard, {
+  type DebateVote,
+} from "@/components/home/RecommendDebateCard";
 import BreakingNewsCard from "@/components/home/BreakingNewsCard";
 import {
   fetchHome,
   fetchMedia,
+  fetchBestChatRooms,
   type IssueRoom,
   type BestChatRoom,
   type ChatRoomResponse,
   type MediaItem,
   type MediaResponse,
 } from "@/lib/api/home";
+import { fetchRoomDetail } from "@/lib/api/room";
 import useAuthStore from "@/store/useAuthStore";
-import { Radio, Newspaper, Flame, Lightbulb, ChevronLeft, ChevronRight } from "lucide-react";
+import { Radio, Newspaper, Flame, Lightbulb, MessagesSquare, ChevronLeft, ChevronRight } from "lucide-react";
+
+// 배열에서 랜덤 n개 추출 (원본 불변, Fisher–Yates 부분 셔플).
+function pickRandom<T>(arr: readonly T[], n: number): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, n);
+}
 
 // ── Skeleton ─────────────────────────────────────
 function SkeletonShell() {
@@ -70,10 +85,17 @@ function SkeletonShell() {
 }
 
 // ── 가로 스크롤 캐러셀 ──────────────────────────────
+// gap-3(12px). perView 지정 시 각 아이템을 width-fill 슬롯으로 감싸(한 화면 perView개),
+// 버튼 클릭은 perView개씩 이동한다.
+const CAROUSEL_GAP = 12;
+
 function HorizontalCarousel({
   children,
+  perView,
 }: {
   children: React.ReactNode;
+  /** 한 화면에 보일 개수(지정 시 각 아이템을 균등 width-fill). 미지정 시 아이템 고유 폭. */
+  perView?: number;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -97,9 +119,32 @@ function HorizontalCarousel({
   const scroll = (dir: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    const amount = el.clientWidth * 0.7;
+    let amount: number;
+    if (perView) {
+      // perView개(= 슬롯 폭+gap) × perView 만큼 이동
+      const first = el.firstElementChild as HTMLElement | null;
+      const itemW = first ? first.offsetWidth : el.clientWidth / perView;
+      amount = (itemW + CAROUSEL_GAP) * perView;
+    } else {
+      amount = el.clientWidth * 0.7;
+    }
     el.scrollBy({ left: dir === "left" ? -amount : amount, behavior: "smooth" });
   };
+
+  // perView 지정 시 각 아이템을 균등 폭 슬롯으로 래핑.
+  // (홀수 마지막 항목도 슬롯 폭이 고정이라 반 칸 폭 + 나머지 공백으로 렌더)
+  const items = perView
+    ? Children.map(children, (child) => (
+        <div
+          className="min-w-0"
+          style={{
+            flex: `0 0 calc((100% - ${(perView - 1) * CAROUSEL_GAP}px) / ${perView})`,
+          }}
+        >
+          {child}
+        </div>
+      ))
+    : children;
 
   return (
     <div className="relative">
@@ -107,7 +152,7 @@ function HorizontalCarousel({
         <button
           type="button"
           onClick={() => scroll("left")}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-grey-80 text-text-primary shadow-md hover:bg-grey-70 transition-colors cursor-pointer"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-grey-80 text-text-primary shadow-md hover:bg-grey-70 transition-colors cursor-pointer"
         >
           <ChevronLeft size={18} />
         </button>
@@ -117,14 +162,14 @@ function HorizontalCarousel({
         ref={scrollRef}
         className="flex gap-3 overflow-x-auto pb-2 scrollbar-grey scroll-smooth"
       >
-        {children}
+        {items}
       </div>
 
       {canScrollRight && (
         <button
           type="button"
           onClick={() => scroll("right")}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-grey-80 text-text-primary shadow-md hover:bg-grey-70 transition-colors cursor-pointer"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-grey-80 text-text-primary shadow-md hover:bg-grey-70 transition-colors cursor-pointer"
         >
           <ChevronRight size={18} />
         </button>
@@ -291,6 +336,48 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
+  // "이런 토론은 어때요?" — bestChatRooms 중 랜덤 3개(데이터 로드마다 재추첨).
+  const recommendedDebates = useMemo(
+    () => pickRandom(bestChatRooms, 3),
+    [bestChatRooms],
+  );
+
+  // 추천 토론방의 찬반 비율은 방별로 /room?chatroom-id= 에서 조회 (debateId=chatroom-id).
+  const [voteByDebate, setVoteByDebate] = useState<Record<number, DebateVote>>(
+    {},
+  );
+
+  useEffect(() => {
+    if (recommendedDebates.length === 0) return;
+
+    let cancelled = false;
+
+    async function loadVotes() {
+      const results = await Promise.all(
+        recommendedDebates.map((room) =>
+          fetchRoomDetail(room.debateId, accessToken)
+            .then((d) => ({
+              id: room.debateId,
+              agree: d.agree,
+              disagree: d.disagree,
+            }))
+            .catch(() => null),
+        ),
+      );
+      if (cancelled) return;
+      const map: Record<number, DebateVote> = {};
+      for (const r of results) {
+        if (r) map[r.id] = { agree: r.agree, disagree: r.disagree };
+      }
+      setVoteByDebate(map);
+    }
+
+    loadVotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [recommendedDebates, accessToken]);
+
   useEffect(() => {
     if (!_hasHydrated) return;
 
@@ -301,14 +388,16 @@ export default function Home() {
         setLoading(true);
         setError(null);
 
-        const [homeData, mediaData] = await Promise.all([
+        // 토론방(bestChatRooms)은 /users/home 이 아니라 /home/recommend 에서 온다.
+        const [homeData, mediaData, bestRooms] = await Promise.all([
           fetchHome(accessToken),
           fetchMedia(accessToken).catch(() => ({ youtubeLive: [], items: [] } as MediaResponse)),
+          fetchBestChatRooms(accessToken).catch(() => [] as BestChatRoom[]),
         ]);
 
         if (!cancelled) {
           setIssueRooms(homeData.issueRooms);
-          setBestChatRooms(homeData.bestChatRooms);
+          setBestChatRooms(bestRooms);
           setChatRooms(homeData.chatRooms);
           setMediaResponse(mediaData);
         }
@@ -351,7 +440,9 @@ export default function Home() {
   }
 
   const media = mediaResponse.items;
+  const youtubeLive = mediaResponse.youtubeLive;
   const hasAnyData =
+    youtubeLive.length > 0 ||
     bestChatRooms.length > 0 ||
     media.length > 0 ||
     chatRooms.length > 0 ||
@@ -359,8 +450,8 @@ export default function Home() {
 
   return (
     <div className="flex flex-col gap-8 py-4">
-      {/* ① 실시간 Live (가로 스크롤) */}
-      {bestChatRooms.length > 0 && (
+      {/* ① 실시간 Live — 유튜브 라이브 (가로 스크롤) */}
+      {youtubeLive.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Radio size={20} className="text-red" />
@@ -368,28 +459,52 @@ export default function Home() {
               실시간 Live
             </h2>
           </div>
-          <HorizontalCarousel>
-            {bestChatRooms.map((room) => (
-              <LiveDebateCard key={room.debateId} data={room} />
+          <HorizontalCarousel perView={2}>
+            {youtubeLive.map((item) => (
+              <YoutubeLiveCard key={item.id} data={item} />
             ))}
           </HorizontalCarousel>
         </section>
       )}
 
-      {/* ② 이런 이슈는 어때요? (가로 스크롤) */}
+      {/* ②-a 이런 토론은 어때요? (랜덤 3개, 가로 행 리스트) */}
+      {recommendedDebates.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <MessagesSquare size={20} className="text-brand" />
+            <h2 className="text-header-20 font-bold text-text-primary">
+              이런 토론은 어때요?
+            </h2>
+          </div>
+          <div className="flex flex-col gap-3">
+            {recommendedDebates.map((room) => (
+              <RecommendDebateCard
+                key={room.debateId}
+                data={room}
+                vote={voteByDebate[room.debateId]}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ②-b 새로운 이슈가 발생했어요! (최신 2개, 2열 그리드) */}
       {issueRooms.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Lightbulb size={20} className="text-brand" />
             <h2 className="text-header-20 font-bold text-text-primary">
-              이런 이슈는 어때요?
+              새로운 이슈가 발생했어요!
             </h2>
           </div>
-          <HorizontalCarousel>
-            {issueRooms.map((issue) => (
-              <IssueCardNew key={issue.issueId} data={issue} />
-            ))}
-          </HorizontalCarousel>
+          <div className="grid grid-cols-2 gap-3">
+            {[...issueRooms]
+              .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+              .slice(0, 2)
+              .map((issue) => (
+                <IssueCardNew key={issue.issueId} data={issue} />
+              ))}
+          </div>
         </section>
       )}
 
@@ -428,6 +543,7 @@ export default function Home() {
           </p>
         </div>
       )}
+
     </div>
   );
 }

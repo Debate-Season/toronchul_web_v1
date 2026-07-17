@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { MessageSquare, Bookmark, ArrowLeft } from "lucide-react";
+import { MessageSquare, ArrowLeft } from "lucide-react";
 import {
   fetchIssueDetail,
   type IssueDetailResponse,
   type ChatRoomInIssue,
 } from "@/lib/api/issue";
-import { fromBase36, roomHref, issueHref } from "@/lib/slug";
+import { fromBase36, roomHref } from "@/lib/slug";
+import { imageUrl } from "@/lib/imageUrl";
 import useAuthStore from "@/store/useAuthStore";
 
 // ── Skeleton ─────────────────────────────────────
@@ -111,30 +112,30 @@ export default function IssueDetailPage() {
         </h1>
         <div className="flex items-center gap-4 mt-2 text-caption-12 text-text-secondary">
           <span className="flex items-center gap-1">
-            <Bookmark size={12} />
-            {data.bookMarks}
-          </span>
-          <span className="flex items-center gap-1">
             <MessageSquare size={12} />
-            {data.chats}
+            토론방 {data.chatRoomMap.length}개
           </span>
         </div>
       </div>
 
-      {/* 커뮤니티 반응 */}
+      {/* 참여 커뮤니티 — 이슈 내 토론방에 참여한 사용자들의 소속 커뮤니티 아이콘 */}
       {communityEntries.length > 0 && (
         <section>
           <h2 className="text-body-16 font-semibold text-text-primary mb-3">
-            커뮤니티 반응
+            참여 커뮤니티
           </h2>
-          <div className="flex flex-wrap gap-2">
-            {communityEntries.map(([community, count]) => (
-              <span
-                key={community}
-                className="rounded-full border border-border bg-surface-elevated px-3 py-1 text-caption-12 text-text-secondary"
-              >
-                {community} {count}
-              </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {communityEntries.map(([iconPath]) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={iconPath}
+                src={imageUrl(iconPath)}
+                alt="커뮤니티"
+                width={32}
+                height={32}
+                className="rounded-lg object-cover"
+                style={{ width: 32, height: 32 }}
+              />
             ))}
           </div>
         </section>

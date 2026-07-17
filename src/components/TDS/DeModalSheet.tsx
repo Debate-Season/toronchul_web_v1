@@ -11,6 +11,10 @@ interface DeModalSheetProps {
   footer?: ReactNode;
   /** 내용과 무관하게 높이를 고정 (프로필 모달처럼 화면 전환 시 크기 유지) */
   fixedHeight?: boolean;
+  /** 데스크톱 최대 너비. "wide"=좌측 메뉴가 있는 2단 레이아웃용. 기본 "md". */
+  size?: "md" | "wide";
+  /** 본문 컨테이너 클래스 오버라이드(기본 "flex-1 overflow-y-auto px-5"). */
+  bodyClassName?: string;
 }
 
 /**
@@ -23,6 +27,8 @@ export default function DeModalSheet({
   children,
   footer,
   fixedHeight = false,
+  size = "md",
+  bodyClassName,
 }: DeModalSheetProps) {
   const handleBackdrop = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
@@ -45,11 +51,13 @@ export default function DeModalSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={handleBackdrop}
     >
       <div
-        className={`relative flex w-full flex-col rounded-t-2xl bg-surface sm:mx-4 sm:max-w-md sm:rounded-2xl ${
+        className={`relative flex w-full flex-col rounded-t-2xl bg-surface sm:mx-4 sm:rounded-2xl ${
+          size === "wide" ? "sm:max-w-2xl" : "sm:max-w-md"
+        } ${
           fixedHeight ? "h-[85vh] sm:h-[600px] sm:max-h-[85vh]" : "max-h-[85vh]"
         }`}
       >
@@ -66,7 +74,9 @@ export default function DeModalSheet({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5">{children}</div>
+        <div className={bodyClassName ?? "flex-1 overflow-y-auto px-5"}>
+          {children}
+        </div>
 
         {footer && <div className="px-5 pt-3 pb-5">{footer}</div>}
       </div>

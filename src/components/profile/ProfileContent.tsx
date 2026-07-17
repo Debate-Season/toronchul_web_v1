@@ -1,25 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import useAuthStore from "@/store/useAuthStore";
 import { performLogout } from "@/lib/auth/logout";
 import { getMyProfile, type MyProfile } from "@/lib/api/profile";
 import { imageUrl } from "@/lib/imageUrl";
-import { KAKAO_CHANNEL_URL, POLICY_LINKS } from "@/lib/profile/constants";
+import { regionLabel } from "@/lib/profile/regions";
 import ProfileAvatar from "@/components/profile/ProfileAvatar";
-import DeConfirmDialog from "@/components/TDS/DeConfirmDialog";
 
 interface ProfileContentProps {
-  /** 최상단 "프로필" 헤딩 표시 (다이얼로그에서는 셸 타이틀이 있으므로 false) */
+  /** 최상단 "프로필" 헤딩 표시 (모달에서는 셸 타이틀이 있으므로 false) */
   showHeading?: boolean;
-  /** 내부 라우트 이동 시 호출 (다이얼로그 닫기 등) */
+  /** 내부 라우트 이동 시 호출 (온보딩 다이얼로그 닫기 등) */
   onNavigate?: () => void;
 }
 
-/** 프로필 메인 콘텐츠. /profile 페이지와 프로필 다이얼로그가 공용으로 사용. */
+/**
+ * 프로필 메인 콘텐츠(프로필 pane). 아바타·닉네임·프로필 수정·소속 커뮤니티만 노출.
+ * 문의/법적/계정 섹션은 좌측 메뉴의 별도 URL 로 분리, 로그아웃은 GNB 드롭다운으로 이동.
+ * /profile 페이지·모달·온보딩 다이얼로그가 공용으로 사용.
+ */
 export default function ProfileContent({
   showHeading = true,
   onNavigate,
@@ -31,7 +34,6 @@ export default function ProfileContent({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-  const [showLogout, setShowLogout] = useState(false);
 
   useEffect(() => {
     if (!_hasHydrated || !isLogin) return;
@@ -61,12 +63,11 @@ export default function ProfileContent({
     };
   }, [_hasHydrated, isLogin, accessToken, retryKey]);
 
-  const handleLogout = useCallback(async () => {
-    setShowLogout(false);
+  const handleLogout = async () => {
     onNavigate?.();
     await performLogout();
     router.replace("/");
-  }, [router, onNavigate]);
+  };
 
   if (!_hasHydrated) return <ProfileSkeleton />;
 
@@ -175,104 +176,48 @@ export default function ProfileContent({
         </div>
       </section>
 
-      {/* 고객 센터 */}
-      <section>
-        <h2 className="mb-3 text-header-18 font-semibold text-text-primary">
-          고객 센터
-        </h2>
-        <ExternalRow label="카카오 채널 문의하기" href={KAKAO_CHANNEL_URL} />
-      </section>
-
-      {/* 법적 정보 및 정책 */}
+      {/* 내 정보 (읽기 전용) */}
       <section>
         <h2 className="mb-1 text-header-18 font-semibold text-text-primary">
-          법적 정보 및 정책
+          내 정보
         </h2>
-        <InternalRow
-          label="약관 및 개인정보 처리 동의"
-          href="/profile/terms"
-          onClick={onNavigate}
+        <InfoRow label="성별" value={profile.gender} />
+        <InfoRow label="연령대" value={profile.ageRange} />
+        <InfoRow
+          label="거주지"
+          value={regionLabel(
+            profile.residenceProvince,
+            profile.residenceDistrict,
+          )}
         />
-        {POLICY_LINKS.map((link) => (
-          <ExternalRow key={link.url} label={link.label} href={link.url} />
-        ))}
-      </section>
-
-      {/* 계정 */}
-      <section>
-        <h2 className="mb-1 text-header-18 font-semibold text-text-primary">
-          계정
-        </h2>
-        <button
-          type="button"
-          onClick={() => setShowLogout(true)}
-          className="flex w-full items-center py-3 cursor-pointer"
-        >
-          <span className="text-body-16 font-medium text-text-tertiary">
-            로그아웃
-          </span>
-          <LogOut size={20} className="ml-auto text-text-secondary" />
-        </button>
-        <InternalRow
-          label="회원탈퇴"
-          href="/profile/withdraw"
-          icon="logout"
-          onClick={onNavigate}
+        <InfoRow
+          label="출신지"
+          value={regionLabel(
+            profile.hometownProvince,
+            profile.hometownDistrict,
+          )}
         />
       </section>
-
-      {showLogout && (
-        <DeConfirmDialog
-          title="로그아웃 하시겠습니까?"
-          doneText="로그아웃"
-          cancelText="취소"
-          onDone={handleLogout}
-          onCancel={() => setShowLogout(false)}
-        />
-      )}
     </div>
   );
 }
 
-// ── Rows ──────────────────────────────────────────
-function ExternalRow({ label, href }: { label: string; href: string }) {
+// ── Row ───────────────────────────────────────────
+function InfoRow({ label, value }: { label: string; value: string }) {
+  const empty = !value;
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center py-3"
-    >
+    <div className="flex items-center py-3">
       <span className="text-body-16 font-medium text-text-tertiary">
         {label}
       </span>
-      <ChevronRight size={20} className="ml-auto text-text-secondary" />
-    </a>
-  );
-}
-
-function InternalRow({
-  label,
-  href,
-  icon = "chevron",
-  onClick,
-}: {
-  label: string;
-  href: string;
-  icon?: "chevron" | "logout";
-  onClick?: () => void;
-}) {
-  return (
-    <Link href={href} onClick={onClick} className="flex items-center py-3">
-      <span className="text-body-16 font-medium text-text-tertiary">
-        {label}
+      <span
+        className={`ml-auto text-body-16 ${
+          empty ? "text-text-secondary" : "font-medium text-text-primary"
+        }`}
+      >
+        {empty ? "미설정" : value}
       </span>
-      {icon === "logout" ? (
-        <LogOut size={20} className="ml-auto text-text-secondary" />
-      ) : (
-        <ChevronRight size={20} className="ml-auto text-text-secondary" />
-      )}
-    </Link>
+    </div>
   );
 }
 

@@ -7,8 +7,8 @@ import { withdraw } from "@/lib/api/profile";
 import { WITHDRAW_TEXT } from "@/lib/profile/constants";
 import DeConfirmDialog from "@/components/TDS/DeConfirmDialog";
 
-/** 회원탈퇴 콘텐츠. 프로필 모달/전체 페이지가 공용으로 사용. */
-export default function ProfileWithdrawContent() {
+/** 계정 삭제 콘텐츠. 설정 계정 하위(/settings/account/delete). 모달/전체 페이지 공용. */
+export default function SettingsAccountDeleteContent() {
   const router = useRouter();
   const { accessToken, isLogin, _hasHydrated, logout } = useAuthStore();
 
@@ -21,7 +21,7 @@ export default function ProfileWithdrawContent() {
     if (!isLogin) router.replace("/login");
   }, [_hasHydrated, isLogin, router]);
 
-  const handleWithdraw = async () => {
+  const handleDelete = async () => {
     setShowDialog(false);
     if (submitting) return;
     setSubmitting(true);
@@ -31,7 +31,7 @@ export default function ProfileWithdrawContent() {
       logout();
       router.replace("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "탈퇴에 실패했습니다.");
+      setError(err instanceof Error ? err.message : "계정 삭제에 실패했습니다.");
       setSubmitting(false);
     }
   };
@@ -67,14 +67,24 @@ export default function ProfileWithdrawContent() {
 
       {error && <p className="text-caption-12 text-red">{error}</p>}
 
-      <button
-        type="button"
-        onClick={() => setShowDialog(true)}
-        disabled={submitting}
-        className="w-full rounded-xl bg-grey-80 py-3 text-body-16 font-medium text-text-primary transition-colors hover:bg-grey-70 disabled:cursor-not-allowed cursor-pointer"
-      >
-        {WITHDRAW_TEXT.doneText}
-      </button>
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => setShowDialog(true)}
+          disabled={submitting}
+          className="w-full rounded-xl bg-grey-80 py-3 text-body-16 font-medium text-text-primary transition-colors hover:bg-grey-70 disabled:cursor-not-allowed cursor-pointer"
+        >
+          {WITHDRAW_TEXT.doneText}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.replace("/settings/account")}
+          disabled={submitting}
+          className="w-full rounded-xl border border-border py-3 text-body-16 font-medium text-text-secondary transition-colors hover:bg-grey-90 disabled:cursor-not-allowed cursor-pointer"
+        >
+          돌아가기
+        </button>
+      </div>
 
       {showDialog && (
         <DeConfirmDialog
@@ -83,7 +93,7 @@ export default function ProfileWithdrawContent() {
           doneText={WITHDRAW_TEXT.doneText}
           cancelText={WITHDRAW_TEXT.cancelText}
           tone="red"
-          onDone={handleWithdraw}
+          onDone={handleDelete}
           onCancel={() => setShowDialog(false)}
         />
       )}

@@ -13,6 +13,8 @@ export interface MyProfile {
   nickname: string;
   gender: string;
   ageRange: string;
+  /** 로그인에 사용한 소셜 종류. 백엔드 enum: "kakao" | "apple" (소문자). */
+  socialType: string;
   community: Community;
   residenceProvince: string;
   residenceDistrict: string;

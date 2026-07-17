@@ -72,7 +72,8 @@ export default function ProfileEditContent() {
       mode="modify"
       initial={profile}
       token={accessToken}
-      onDone={() => router.push("/profile")}
+      onDone={() => router.replace("/profile")}
+      onCancel={() => router.replace("/profile")}
     />
   );
 }

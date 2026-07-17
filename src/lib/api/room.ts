@@ -32,3 +32,18 @@ export async function fetchRoomDetail(
     { token },
   );
 }
+
+/** 투표 의견. RoomDetailResponse.opinion 이 이 값이면 투표 완료(NEUTRAL=미투표). */
+export type VoteOpinion = "AGREE" | "DISAGREE";
+
+/** POST /api/v1/room/vote — 찬반 투표(쿼리 파라미터, body 없음). 로그인 필요. */
+export async function voteRoom(
+  chatRoomId: number,
+  opinion: VoteOpinion,
+  token: string | null,
+): Promise<void> {
+  await apiFetch<string>(
+    `/api/v1/room/vote?opinion=${opinion}&chatroom-id=${chatRoomId}`,
+    { method: "POST", token },
+  );
+}

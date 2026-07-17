@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Home, Map, User, LogIn, Flame, X, Download, Smartphone } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Home, Map, User, Settings, LogIn, LogOut, Flame, X, Download, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -10,34 +10,16 @@ import {
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
 import { roomHref } from "@/lib/slug";
-import { redirectToKakao } from "@/lib/auth/kakao";
-import { redirectToApple } from "@/lib/auth/apple";
-import ProfileDialog from "@/components/profile/ProfileDialog";
+import { performLogout } from "@/lib/auth/logout";
+import DeConfirmDialog from "@/components/TDS/DeConfirmDialog";
+import LoginModal from "@/components/auth/LoginModal";
+import YoutubeFloatingPlayer from "@/components/home/YoutubeFloatingPlayer";
 
 // ── 공통 메뉴 (비로그인도 접근 가능) ──────────────────
 const PUBLIC_NAV_ITEMS = [
   { href: "/", label: "홈", icon: Home },
   { href: "/map", label: "이슈맵", icon: Map },
 ] as const;
-
-function KakaoIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M9 1C4.58 1 1 3.79 1 7.21C1 9.28 2.36 11.1 4.39 12.19L3.53 15.38C3.46 15.62 3.72 15.82 3.93 15.68L7.63 13.31C8.08 13.36 8.54 13.39 9 13.39C13.42 13.39 17 10.6 17 7.18C17 3.79 13.42 1 9 1Z"
-        fill="black"
-      />
-    </svg>
-  );
-}
 
 function AppleIcon() {
   return (
@@ -56,85 +38,48 @@ function AppleIcon() {
   );
 }
 
-// ── 로그인 모달 ───────────────────────────────────
-function LoginModal({ onClose }: { onClose: () => void }) {
-  // 배경 클릭 시 닫기
-  const handleBackdrop = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
-  // ESC 키로 닫기
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
-  // 스크롤 방지
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
-
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50"
-      onClick={handleBackdrop}
-    >
-      <div className="relative w-full max-w-sm mx-4 rounded-2xl bg-surface p-8">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-        >
-          <X size={20} />
-        </button>
-
-        <div className="mb-8 text-center">
-          <h2 className="text-header-24 font-bold text-text-primary">토론철</h2>
-          <p className="mt-2 text-body-14 text-text-secondary">
-            나의 의견을 자유롭게 펼쳐보세요
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={redirectToKakao}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-kakao py-3 text-body-16 font-medium text-black cursor-pointer transition-colors hover:brightness-95"
-          >
-            <KakaoIcon />
-            카카오로 시작하기
-          </button>
-
-          <button
-            type="button"
-            onClick={redirectToApple}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-3 text-body-16 font-medium text-white cursor-pointer transition-colors hover:brightness-150"
-          >
-            <AppleIcon />
-            Apple로 시작하기
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Top Bar ────────────────────────────────────────
 // minimal: 온보딩용. 로고는 홈 이동 비활성화, 로그인 버튼 없음.
-// 프로필 아이콘은 노출해 로그아웃 경로를 제공한다.
-// - 일반 화면: /profile 로 이동 → @modal 인터셉트로 현재 페이지 위 모달.
-// - 온보딩: 셸이 달라 배경 깜빡임을 피하려 라우트 이동 없이 클라이언트 모달로 연다.
+// 프로필 아이콘 클릭 시 아이콘 아래에 작은 드롭다운 메뉴를 연다.
+// - 일반: "프로필"(→ /profile 별도 페이지), "설정"(→ /settings 모달), "로그아웃".
+// - 온보딩(minimal): 아직 프로필/설정 접근 불가하므로 "로그아웃"만 노출(이탈 경로).
 function TopBar({ minimal = false }: { minimal?: boolean }) {
   const router = useRouter();
   const { accessToken, _hasHydrated } = useAuthStore();
   const [showLogin, setShowLogin] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 드롭다운: 바깥 클릭·ESC 로 닫기
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const go = (href: string) => {
+    setMenuOpen(false);
+    router.push(href);
+  };
+
+  const handleLogout = async () => {
+    setShowLogoutConfirm(false);
+    await performLogout();
+    router.replace("/");
+  };
 
   const logo = (
     <span className="flex items-center gap-2">
@@ -144,15 +89,64 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
     </span>
   );
 
-  const profileButton = (onClick: () => void) => (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="프로필"
-      className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
-    >
-      <User size={20} className="text-text-secondary" />
-    </button>
+  const menuItemClass =
+    "flex w-full items-center gap-2.5 px-4 py-2.5 text-body-14 font-medium text-text-primary transition-colors hover:bg-grey-100 cursor-pointer";
+
+  const profileMenu = (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-label="프로필"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        className="flex items-center justify-center w-9 h-9 rounded-full bg-surface-elevated hover:bg-grey-80 transition-colors cursor-pointer"
+      >
+        <User size={20} className="text-text-secondary" />
+      </button>
+
+      {menuOpen && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full mt-2 w-40 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-lg z-[60]"
+        >
+          {!minimal && (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => go("/profile")}
+                className={menuItemClass}
+              >
+                <User size={16} className="text-text-secondary" />
+                프로필
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => go("/settings/account")}
+                className={menuItemClass}
+              >
+                <Settings size={16} className="text-text-secondary" />
+                설정
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setMenuOpen(false);
+              setShowLogoutConfirm(true);
+            }}
+            className={menuItemClass}
+          >
+            <LogOut size={16} className="text-text-secondary" />
+            로그아웃
+          </button>
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -166,7 +160,7 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
           </Link>
         )}
         {minimal ? (
-          profileButton(() => setShowProfile(true))
+          profileMenu
         ) : _hasHydrated && !accessToken ? (
           <button
             type="button"
@@ -177,13 +171,19 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
             로그인
           </button>
         ) : (
-          profileButton(() => router.push("/profile"))
+          profileMenu
         )}
       </header>
 
       {!minimal && showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
-      {minimal && showProfile && (
-        <ProfileDialog onClose={() => setShowProfile(false)} />
+      {showLogoutConfirm && (
+        <DeConfirmDialog
+          title="로그아웃 하시겠습니까?"
+          doneText="로그아웃"
+          cancelText="취소"
+          onDone={handleLogout}
+          onCancel={() => setShowLogoutConfirm(false)}
+        />
       )}
     </>
   );
@@ -199,7 +199,7 @@ function LeftSidebar() {
 
   return (
     <>
-      <aside className="fixed left-0 top-14 w-64 h-[calc(100vh-3.5rem)] hidden md:flex md:flex-col bg-surface border-r border-border overflow-y-auto">
+      <aside className="fixed left-0 top-14 w-64 h-[calc(100vh-3.5rem)] hidden lg:flex lg:flex-col bg-surface border-r border-border overflow-y-auto">
         <nav className="flex flex-col gap-1 p-3 flex-1">
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href;
@@ -271,9 +271,9 @@ function RightSidebar() {
   }, [_hasHydrated, accessToken]);
 
   return (
-    <aside className="fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] hidden lg:block bg-surface border-l border-border overflow-y-auto">
+    <aside className="fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] hidden md:block overflow-y-auto">
       <div className="p-4">
-        <div className="rounded-xl bg-surface-elevated border border-border p-4">
+        <div className="rounded-xl border border-border p-4">
           <div className="flex items-center gap-2 mb-4">
             <Flame size={18} className="text-red" />
             <h3 className="text-body-14 font-semibold text-text-primary">
@@ -416,7 +416,7 @@ function BottomNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 w-full h-16 z-50 flex items-center justify-around bg-surface border-t border-border md:hidden">
+      <nav className="fixed bottom-0 left-0 w-full h-16 z-50 flex items-center justify-around bg-surface border-t border-border lg:hidden">
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
           return (
@@ -500,11 +500,14 @@ export default function RedditLayout({
       <LeftSidebar />
       <RightSidebar />
 
-      <main className="pt-14 md:ml-64 lg:mr-80 min-h-screen flex justify-center">
-        <div className="max-w-2xl w-full p-4 pb-20 md:pb-4">{children}</div>
+      <main className="pt-14 md:mr-80 lg:ml-64 min-h-screen flex justify-center">
+        <div className="max-w-2xl w-full p-4 pb-20 lg:pb-4">{children}</div>
       </main>
 
       <BottomNav />
+
+      {/* 유튜브 라이브 플로팅 플레이어 — 레이아웃에 마운트되어 페이지 이동 중에도 재생 유지 */}
+      <YoutubeFloatingPlayer />
     </>
   );
 }

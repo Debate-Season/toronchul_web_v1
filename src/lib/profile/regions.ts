@@ -190,3 +190,17 @@ export function provinceFromCode(code: string): Province {
 export function districtFromCode(code: string): District | null {
   return DISTRICT_INDEX[code] ?? null;
 }
+
+/**
+ * province+district code → "서울특별시 강남구" 형태 표시명.
+ * district code 가 없거나 매칭 실패 시 "" 반환(미설정).
+ */
+export function regionLabel(
+  provinceCode: string,
+  districtCode: string,
+): string {
+  if (!districtCode) return "";
+  const district = districtFromCode(districtCode);
+  if (!district) return "";
+  return `${provinceFromCode(provinceCode).name} ${district.name}`;
+}

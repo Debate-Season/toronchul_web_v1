@@ -45,6 +45,8 @@ interface ProfileFormProps {
   token: string | null;
   /** 저장 성공 후 호출 (create→이미지, modify→뒤로) */
   onDone: () => void;
+  /** 수정 취소(수정 모드 전용). 변경 내용을 버리고 이동. */
+  onCancel?: () => void;
 }
 
 function regionText(region: RegionState): string {
@@ -60,6 +62,7 @@ export default function ProfileForm({
   initial,
   token,
   onDone,
+  onCancel,
 }: ProfileFormProps) {
   const isModify = mode === "modify";
   const initialNickname = initial?.nickname ?? "";
@@ -340,12 +343,22 @@ export default function ProfileForm({
         <p className="text-caption-12 text-red">{submitError}</p>
       )}
 
-      <div className="pt-2">
+      <div className="flex flex-col gap-3 pt-2">
         <DeButtonLarge
           text={isModify ? PROFILE_TEXT.modifyBtn : PROFILE_TEXT.nextBtn}
           enable={isValid && !submitting}
           onPressed={handleSubmit}
         />
+        {isModify && onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="w-full rounded-xl border border-border py-3 text-body-16 font-medium text-text-secondary transition-colors hover:bg-grey-90 disabled:cursor-not-allowed cursor-pointer"
+          >
+            수정 취소
+          </button>
+        )}
       </div>
 
       {/* 모달 */}

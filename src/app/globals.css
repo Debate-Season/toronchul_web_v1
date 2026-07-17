@@ -147,6 +147,11 @@
 }
 
 /* ── Base Styles ──────────────────────────────────────────── */
+/* 모달 오픈 시 body overflow:hidden 으로 스크롤바가 사라지며 페이지가
+   흔들리는 것을 방지 — 스크롤바 gutter 를 항상 예약해 둔다. */
+html {
+  scrollbar-gutter: stable;
+}
 body {
   font-family: "Pretendard Variable", Pretendard, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

@@ -28,6 +28,15 @@ export function imageColorFromEngName(engName: string): ImageColor {
   return IMAGE_COLORS.find((c) => c.engName === upper) ?? IMAGE_COLORS[0];
 }
 
+// ── 소셜 로그인 종류 ──────────────────────────────────────
+// socialType(GET /profiles/me 의 값, "kakao"/"apple")의 표시명.
+export function socialTypeLabel(socialType: string | null | undefined): string {
+  const t = (socialType ?? "").toLowerCase();
+  if (t.includes("kakao")) return "Kakao";
+  if (t.includes("apple")) return "Apple";
+  return "-";
+}
+
 // ── 성별 ──────────────────────────────────────────────────
 // 표시값 = 전송값 (한글 그대로 전송).
 export const GENDERS = ["남성", "여성", "무응답"] as const;
@@ -77,21 +86,21 @@ export const PROFILE_TEXT = {
 
 // ── 회원 탈퇴 문구 ────────────────────────────────────────
 export const WITHDRAW_TEXT = {
-  policyTitle: "탈퇴 정책 안내",
+  policyTitle: "계정 삭제 정책 안내",
   procedureTitle: "절차",
   procedureDescription:
-    "회원 탈퇴를 신청하면 계정이 로그아웃되고 5일 뒤 탈퇴가 진행됩니다. 삭제 전 다시 로그인하면 탈퇴를 취소할 수 있습니다.",
-  warning: "탈퇴가 완료될 경우, 해당 아이는 복구가 불가능합니다.",
+    "계정 삭제를 신청하면 계정이 로그아웃되고 5일 뒤 삭제가 진행됩니다. 삭제 전 다시 로그인하면 삭제를 취소할 수 있습니다.",
+  warning: "삭제가 완료될 경우, 해당 계정은 복구가 불가능합니다.",
   deletedInfoTitle: "삭제되는 정보",
-  deletedInfoPart1: "탈퇴가 완료되면 ",
+  deletedInfoPart1: "삭제가 완료되면 ",
   deletedInfoPart2: "고유아이디, 닉네임, 성별 정보",
   deletedInfoPart3: "가 삭제됩니다. 내가 선택한 진영과 작성한 대화는 삭제되지 않습니다.",
-  dialogTitle: "회원 탈퇴 신청",
+  dialogTitle: "계정 삭제 신청",
   dialogDescription:
-    "회원 탈퇴를 신청하면 계정이 로그아웃되고 5일 뒤 회원 정보가 완전히 삭제됩니다.\n삭제 전 다시 로그인하면 탈퇴를 취소할 수 있습니다.\n탈퇴를 신청하시겠습니까?",
-  doneText: "탈퇴 신청하기",
-  cancelText: "탈퇴 취소",
-  successMessage: "회원탈퇴 되었습니다.",
+    "계정 삭제를 신청하면 계정이 로그아웃되고 5일 뒤 회원 정보가 완전히 삭제됩니다.\n삭제 전 다시 로그인하면 삭제를 취소할 수 있습니다.\n삭제를 신청하시겠습니까?",
+  doneText: "삭제 신청하기",
+  cancelText: "취소",
+  successMessage: "계정이 삭제되었습니다.",
 } as const;
 
 // ── 외부 링크 ─────────────────────────────────────────────
