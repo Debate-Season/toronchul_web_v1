@@ -11,19 +11,25 @@ export interface ChatReaction {
   userReactedAttitude: boolean;
 }
 
+/**
+ * Swagger 상 `content` 만 required 이고 나머지는 optional 이다.
+ * 실제로 STOMP 브로드캐스트 프레임에서 `sender: null` 이 관측됐다(전송 직후 echo).
+ * REST 조회 응답과 소켓 프레임이 같은 타입을 공유하므로, 서버가 채우지 않을 수
+ * 있는 필드는 nullable 로 두고 렌더에서 방어한다.
+ */
 export interface ChatMessage {
   id: number;
   roomId: number;
   messageType: ChatMessageType;
   content: string;
-  sender: string;
-  opinionType: ChatOpinionType;
-  /** 소속 커뮤니티(아이콘 경로 또는 이름). 렌더는 방어적으로 처리. */
-  userCommunity: string;
-  /** 프로필 색상(engName 추정, 예 "RED"). */
-  profileColor: string;
-  timeStamp: string;
-  reactions: ChatReaction;
+  sender: string | null;
+  opinionType: ChatOpinionType | null;
+  /** 소속 커뮤니티(Swagger 예시는 이름 "에펨코리아", 경로로 오는 경우도 방어). */
+  userCommunity: string | null;
+  /** 프로필 색상 engName (예 "RED"). */
+  profileColor: string | null;
+  timeStamp: string | null;
+  reactions: ChatReaction | null;
 }
 
 export interface ChatMessagesResponse {
