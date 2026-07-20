@@ -13,14 +13,7 @@ import {
 import useAuthStore from "@/store/useAuthStore";
 import LoginModal from "@/components/auth/LoginModal";
 import DeConfirmDialog from "@/components/TDS/DeConfirmDialog";
-
-// 찬반 비율(%). 표 없으면 50/50 (앱 공통 규칙).
-function getPercentages(agree: number, disagree: number) {
-  const total = agree + disagree;
-  if (total === 0) return { agreePercent: 50, disagreePercent: 50 };
-  const agreePercent = Math.round((agree / total) * 100);
-  return { agreePercent, disagreePercent: 100 - agreePercent };
-}
+import DeVoteGauge from "@/components/TDS/DeVoteGauge";
 
 interface RoomDetailProps {
   roomId: number;
@@ -134,11 +127,6 @@ export default function RoomDetail({
     );
   }
 
-  const { agreePercent, disagreePercent } = getPercentages(
-    data.agree,
-    data.disagree,
-  );
-
   return (
     <div className="flex flex-col gap-6 py-4">
       {/* 뒤로가기 */}
@@ -186,18 +174,12 @@ export default function RoomDetail({
 
       {/* 찬반 현황 게이지 */}
       <section>
-        <div className="flex h-3 w-full overflow-hidden rounded-full">
-          <div className="bg-red transition-all" style={{ width: `${agreePercent}%` }} />
-          <div className="bg-blue transition-all" style={{ width: `${disagreePercent}%` }} />
-        </div>
-        <div className="mt-2 flex items-center justify-between">
-          <span className="text-body-14 font-semibold text-red">
-            찬성 {data.agree}명 ({agreePercent}%)
-          </span>
-          <span className="text-body-14 font-semibold text-blue">
-            반대 {data.disagree}명 ({disagreePercent}%)
-          </span>
-        </div>
+        <DeVoteGauge
+          agree={data.agree}
+          disagree={data.disagree}
+          size="lg"
+          showCount
+        />
       </section>
 
       {/* 입장하기 (투표해야 활성) */}

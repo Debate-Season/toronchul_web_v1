@@ -12,6 +12,7 @@ import {
 import { fromBase36, roomHref } from "@/lib/slug";
 import { imageUrl } from "@/lib/imageUrl";
 import useAuthStore from "@/store/useAuthStore";
+import DeVoteGauge from "@/components/TDS/DeVoteGauge";
 
 // ── Skeleton ─────────────────────────────────────
 function SkeletonShell() {
@@ -157,13 +158,12 @@ export default function IssueDetailPage() {
                   <p className="text-caption-12 text-text-secondary mb-3 line-clamp-2">
                     {room.content}
                   </p>
-                  <div className="flex items-center gap-3 text-caption-12 text-text-secondary">
-                    <span>찬성 {room.agree}</span>
-                    <span>반대 {room.disagree}</span>
-                    <span className="flex items-center gap-1">
-                      <MessageSquare size={12} />
-                      {room.time}
-                    </span>
+                  {/* 찬반 게이지 */}
+                  <DeVoteGauge agree={room.agree} disagree={room.disagree} size="md" />
+
+                  <div className="mt-3 flex items-center gap-1 text-caption-12 text-text-secondary">
+                    <MessageSquare size={12} />
+                    {room.time}
                   </div>
                 </article>
               </Link>
