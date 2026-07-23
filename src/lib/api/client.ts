@@ -24,6 +24,55 @@ interface ApiResponse<T> {
 /** 토큰 갱신 중복 요청 방지 */
 let refreshPromise: Promise<string | null> | null = null;
 
+/** base64url → UTF-8 문자열. 실패 시 null. */
+function base64UrlDecode(input: string): string | null {
+  try {
+    let b64 = input.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4;
+    if (pad) b64 += "=".repeat(4 - pad);
+    if (typeof atob === "function") {
+      const bin = atob(b64);
+      const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      return new TextDecoder().decode(bytes);
+    }
+    return Buffer.from(b64, "base64").toString("utf-8");
+  } catch {
+    return null;
+  }
+}
+
+/** JWT payload 의 exp(초) 추출. 디코드 불가/미포함이면 null. */
+function getTokenExp(token: string): number | null {
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  const json = base64UrlDecode(parts[1]);
+  if (!json) return null;
+  try {
+    const payload: unknown = JSON.parse(json);
+    if (
+      typeof payload === "object" &&
+      payload !== null &&
+      "exp" in payload &&
+      typeof (payload as { exp: unknown }).exp === "number"
+    ) {
+      return (payload as { exp: number }).exp;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 액세스 토큰이 만료(또는 임박)인지 판정.
+ * exp 를 못 읽으면 만료로 단정하지 않고 false 반환 → 401 반응 경로에 위임.
+ */
+function isTokenExpired(token: string, skewSeconds = 30): boolean {
+  const exp = getTokenExp(token);
+  if (exp === null) return false;
+  return exp - skewSeconds <= Date.now() / 1000;
+}
+
 /**
  * 인증 헤더를 자동 첨부하는 fetch 래퍼.
  * token이 주어지면 Authorization: Bearer {token}을 추가한다.
@@ -35,7 +84,24 @@ export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {},
 ): Promise<T> {
-  const { token, headers = {}, timeout = DEFAULT_TIMEOUT, ...rest } = options;
+  const { token: initialToken, headers = {}, timeout = DEFAULT_TIMEOUT, ...rest } = options;
+  let token = initialToken;
+
+  // ── 선제 토큰 갱신 ─────────────────────────────
+  // optional-auth GET(/room, /issue 등)은 만료 토큰에도 401 대신 익명 데이터를
+  // 돌려주므로 아래 401 반응 경로가 트리거되지 않는다. 요청 전에 exp 를 확인해
+  // 만료(임박)면 미리 reissue 하여 "다음날 투표·입장이 풀리는" 문제를 방지한다.
+  if (token && !path.includes("/auth/reissue") && isTokenExpired(token)) {
+    const refreshed = await handleTokenRefresh();
+    if (refreshed) {
+      token = refreshed;
+    } else {
+      // 액세스·리프레시 토큰이 모두 만료 → 401 반응 경로와 동일하게 세션 종료.
+      const { performLogout } = await import("@/lib/auth/logout");
+      await performLogout();
+      throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+    }
+  }
 
   const mergedHeaders: Record<string, string> = {
     "Content-Type": "application/json",
