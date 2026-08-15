@@ -16,6 +16,23 @@ const WS_URL =
 const topicOf = (roomId: number) => `/topic/room${roomId}`;
 /** 발행(전송) 목적지 */
 const publishOf = (roomId: number) => `/stomp/chat.room.${roomId}`;
+/**
+ * 발행 거절 통보 목적지. 서버가 `@SendToUser("/queue/errors")` 로 보내고
+ * user destination prefix 가 `/user` 라 클라이언트는 이 경로를 구독한다.
+ *
+ * 여기를 구독하지 않으면 서버가 메시지를 거절해도 클라이언트는 아무 신호도
+ * 받지 못한다 — 연결은 살아 있고 전송 프레임도 나갔으니 사용자 입장에서는
+ * "보냈는데 아무 일도 안 일어남" 이 된다.
+ *
+ * 실제로 오는 것: 길이 검증 위반(1~500자), `NOT_FOUND_PROFILE`,
+ * `NOT_FOUND_CHAT_ROOM`, 그 밖의 서버 예외.
+ * **토큰 만료는 여기로 오지 않는다** — CONNECT 단계에서 거부되어 `unauthorized`
+ * 상태로 잡힌다. 게다가 연결을 유지하는 동안에는 토큰이 만료돼도 발행이 계속
+ * 성공한다(Principal 이 CONNECT 시점에 한 번만 세팅됨).
+ *
+ * 에러가 나도 서버는 세션을 닫지 않는다 — 재연결 루프는 생기지 않는다.
+ */
+const ERROR_QUEUE = "/user/queue/errors";
 
 /** 발행 payload — 2026-07-18 백엔드 회신으로 확정된 스펙 */
 export interface ChatPublishInput {
@@ -42,6 +59,8 @@ interface ChatSocketOptions {
   /** 브로커가 푸시한 메시지 1건 */
   onMessage: (msg: ChatMessage) => void;
   onStatus: (status: ChatSocketStatus) => void;
+  /** 서버가 발행을 거절했을 때의 사용자 안내 문구 */
+  onError: (message: string) => void;
 }
 
 export interface ChatSocket {
@@ -55,6 +74,36 @@ export interface ChatSocket {
 function isAuthError(message: string | undefined): boolean {
   if (!message) return false;
   return message.includes("인증 토큰") || message.includes("유효하지 않은");
+}
+
+/** 서버 문구를 읽지 못했을 때의 대체 안내. */
+const GENERIC_SEND_ERROR = "메시지를 보내지 못했어요. 잠시 후 다시 시도해 주세요.";
+
+/**
+ * 발행 거절 프레임 → 사용자 안내 문구.
+ *
+ * `ChatMessageErrorResponse` 는 `{ messageType: "ERROR", message: string }`
+ * 두 필드뿐이다(2026-08-16 백엔드 확인). REST 의 `ErrorResponse` 와 달리
+ * **`code` 도 `status` 도 없어서 에러 종류를 구분할 수 없다.** 그래서 종류별
+ * 분기 없이 서버 문구를 그대로 보여준다 — 문구는 서버에서 바뀔 수 있으므로
+ * 문자열 매칭으로 분기하지 말 것.
+ *
+ * 원본 메시지를 식별할 값(clientMessageId 류)도 없다. 그래서 실패를 말풍선
+ * 단위로 표시할 수 없고 화면 하단 배너로 처리한다.
+ *
+ * 두 필드 모두 nullable 이라 방어적으로 읽는다.
+ */
+function parseErrorFrame(body: string): string {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (typeof parsed !== "object" || parsed === null) return GENERIC_SEND_ERROR;
+    const message = (parsed as Record<string, unknown>).message;
+    return typeof message === "string" && message.trim()
+      ? message.trim()
+      : GENERIC_SEND_ERROR;
+  } catch {
+    return GENERIC_SEND_ERROR;
+  }
 }
 
 /**
@@ -86,8 +135,10 @@ export function createChatSocket({
   token,
   onMessage,
   onStatus,
+  onError,
 }: ChatSocketOptions): ChatSocket {
   let subscription: StompSubscription | null = null;
+  let errorSubscription: StompSubscription | null = null;
   let authFailed = false;
   let everConnected = false;
 
@@ -105,6 +156,10 @@ export function createChatSocket({
     subscription = client.subscribe(topicOf(roomId), (frame: IMessage) => {
       const msg = parseMessage(frame.body);
       if (msg) onMessage(msg);
+    });
+    // 발행 거절 통보. 재연결마다 다시 구독된다(onConnect 안이라서).
+    errorSubscription = client.subscribe(ERROR_QUEUE, (frame: IMessage) => {
+      onError(parseErrorFrame(frame.body));
     });
   };
 
@@ -146,6 +201,8 @@ export function createChatSocket({
     async close() {
       subscription?.unsubscribe();
       subscription = null;
+      errorSubscription?.unsubscribe();
+      errorSubscription = null;
       await client.deactivate();
     },
   };

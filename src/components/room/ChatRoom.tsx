@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { SendHorizontal } from "lucide-react";
+import { SendHorizontal, X } from "lucide-react";
 import useAuthStore from "@/store/useAuthStore";
 import { fetchMessages, type ChatMessage } from "@/lib/api/chat";
 import {
@@ -153,6 +153,14 @@ export default function ChatRoom({
   const [draft, setDraft] = useState("");
   /** 발행 payload 에 필요한 값(소속 커뮤니티). 로드 전엔 전송 불가. */
   const [myCommunity, setMyCommunity] = useState<string | null>(null);
+  /** 서버가 발행을 거절했을 때의 안내. 다음 전송 시 지운다. */
+  const [sendError, setSendError] = useState<string | null>(null);
+  /**
+   * 마지막으로 발행한 본문. 서버가 거절하면 입력창에 되돌려 놓는다.
+   * 전송 성공 신호가 없어(발행은 fire-and-forget) 낙관적으로 비웠다가
+   * 거절될 때만 복구하는 방식이다.
+   */
+  const lastSentRef = useRef<string | null>(null);
   const socketRef = useRef<ChatSocket | null>(null);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -227,6 +235,14 @@ export default function ChatRoom({
             typeof msg.id === "number" && prev.some((m) => m.id === msg.id);
           return dup ? prev : [...prev, msg];
         }),
+      onError: (message) => {
+        setSendError(message);
+        // 거절된 본문을 입력창에 되돌린다. 그 사이에 새로 입력한 게 있으면
+        // 그쪽이 우선 — 사용자가 방금 친 글자를 덮어쓰지 않는다.
+        const failed = lastSentRef.current;
+        lastSentRef.current = null;
+        if (failed) setDraft((prev) => (prev.trim() ? prev : failed));
+      },
     });
     socketRef.current = socket;
 
@@ -244,12 +260,16 @@ export default function ChatRoom({
     // 서버 제약: 1자 이상 500자 이하 (Swagger ChatMessageResponse.content)
     if (!content || content.length > 500) return;
     if (myCommunity === null) return;
+    setSendError(null);
     const sent = socketRef.current?.publish({
       content,
       opinionType: myOpinion,
       userCommunity: myCommunity,
     });
-    if (sent) setDraft("");
+    if (sent) {
+      lastSentRef.current = content;
+      setDraft("");
+    }
   };
 
   const loadMore = async () => {
@@ -403,6 +423,22 @@ export default function ChatRoom({
 
       {/* 입력 (하단 고정) */}
       <div className="flex-shrink-0">
+        {/* 발행 거절 — 연결은 살아 있는데 서버가 메시지를 받지 않은 경우.
+            본문은 입력창에 복구되므로 그대로 다시 보낼 수 있다. */}
+        {sendError && (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-red bg-red-dark px-3 py-2 mb-2">
+            <p className="text-caption-12 text-text-primary">{sendError}</p>
+            <button
+              type="button"
+              onClick={() => setSendError(null)}
+              aria-label="닫기"
+              className="flex-shrink-0 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {socketStatus === "unauthorized" ? (
           <p className="pt-2 pb-3 text-center text-caption-12 text-text-secondary">
             세션이 만료되어 채팅에 연결할 수 없어요. 다시 로그인해 주세요.
