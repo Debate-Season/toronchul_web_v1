@@ -7,12 +7,11 @@ import { MessageSquare, ArrowLeft } from "lucide-react";
 import {
   fetchIssueDetail,
   type IssueDetailResponse,
-  type ChatRoomInIssue,
 } from "@/lib/api/issue";
-import { fromBase36, roomHref } from "@/lib/slug";
+import { fromBase36 } from "@/lib/slug";
 import { imageUrl } from "@/lib/imageUrl";
 import useAuthStore from "@/store/useAuthStore";
-import DeVoteGauge from "@/components/TDS/DeVoteGauge";
+import IssueThreadList from "@/components/room/IssueThreadList";
 
 // ── Skeleton ─────────────────────────────────────
 function SkeletonShell() {
@@ -114,7 +113,7 @@ export default function IssueDetailPage() {
         <div className="flex items-center gap-4 mt-2 text-caption-12 text-text-secondary">
           <span className="flex items-center gap-1">
             <MessageSquare size={12} />
-            토론방 {data.chatRoomMap.length}개
+            토론 주제 {data.chatRoomMap.length}개
           </span>
         </div>
       </div>
@@ -142,43 +141,8 @@ export default function IssueDetailPage() {
         </section>
       )}
 
-      {/* 토론방 목록 */}
-      {data.chatRoomMap.length > 0 && (
-        <section>
-          <h2 className="text-body-16 font-semibold text-text-primary mb-3">
-            토론방
-          </h2>
-          <div className="flex flex-col gap-3">
-            {data.chatRoomMap.map((room: ChatRoomInIssue) => (
-              <Link key={room.chatRoomId} href={roomHref(fromBase36(id), data.title, room.chatRoomId, room.title)}>
-                <article className="rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70">
-                  <h3 className="text-body-16 font-semibold text-text-primary mb-1 line-clamp-2">
-                    {room.title}
-                  </h3>
-                  <p className="text-caption-12 text-text-secondary mb-3 line-clamp-2">
-                    {room.content}
-                  </p>
-                  {/* 찬반 게이지 */}
-                  <DeVoteGauge agree={room.agree} disagree={room.disagree} size="md" />
-
-                  <div className="mt-3 flex items-center gap-1 text-caption-12 text-text-secondary">
-                    <MessageSquare size={12} />
-                    {room.time}
-                  </div>
-                </article>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {data.chatRoomMap.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <p className="text-body-16 text-text-secondary">
-            아직 토론방이 없습니다.
-          </p>
-        </div>
-      )}
+      {/* 토론 주제 목록 → 해당 주제 탭이 열린 토론방으로 (GET /api/v2/room) */}
+      <IssueThreadList issueId={fromBase36(id)} />
     </div>
   );
 }

@@ -19,7 +19,10 @@ export interface ChatReaction {
  */
 export interface ChatMessage {
   id: number;
+  /** 컨테이너 방 id (Swagger: "룸ID(컨테이너)"). */
   roomId: number;
+  /** 스레드(토론 주제) id. Swagger: "웹이 탭 필터에 사용. 미분류 메시지는 null". */
+  threadId: number | null;
   messageType: ChatMessageType;
   content: string;
   sender: string | null;
@@ -44,13 +47,22 @@ export type ReactionAction = "ADD" | "REMOVE";
 
 // ── API ───────────────────────────────────────────
 
-/** GET /api/v1/chat/rooms/{roomId}/messages — 메시지 조회(커서 페이지네이션). 인증 필요. */
+/**
+ * GET /api/v1/chat/rooms/{roomId}/messages — 메시지 조회(커서 페이지네이션). 인증 필요.
+ *
+ * `threadId` 를 주면 그 스레드(토론 주제)의 메시지만 내려온다. 커서는 **모드별로
+ * 다른 스트림**이라 전체 ↔ 스레드 필터를 오갈 때 재사용하면 안 된다(실측 확인).
+ */
 export async function fetchMessages(
   roomId: number,
   cursor: string | null,
   token: string | null,
+  threadId?: number | null,
 ): Promise<ChatMessagesResponse> {
-  const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  const params = new URLSearchParams();
+  if (cursor) params.set("cursor", cursor);
+  if (threadId != null) params.set("threadId", String(threadId));
+  const q = params.size > 0 ? `?${params.toString()}` : "";
   return apiFetch<ChatMessagesResponse>(
     `/api/v1/chat/rooms/${roomId}/messages${q}`,
     { token },

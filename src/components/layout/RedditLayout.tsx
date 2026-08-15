@@ -9,7 +9,7 @@ import {
   type BestChatRoom,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
-import { roomHref } from "@/lib/slug";
+import { threadHref } from "@/lib/slug";
 import { performLogout } from "@/lib/auth/logout";
 import DeConfirmDialog from "@/components/TDS/DeConfirmDialog";
 import LoginModal from "@/components/auth/LoginModal";
@@ -298,7 +298,7 @@ function RightSidebar() {
               {topics.map((topic, idx) => (
                 <li key={topic.debateId}>
                   <Link
-                    href={roomHref(topic.issueId, topic.issueTitle, topic.debateId, topic.debateTitle)}
+                    href={threadHref(topic.issueId, topic.issueTitle, topic.debateId, topic.debateTitle)}
                     className="flex items-start gap-3 rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-grey-90 cursor-pointer"
                   >
                     <span className="text-body-14 font-bold text-brand">

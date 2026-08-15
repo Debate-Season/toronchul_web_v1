@@ -1,8 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, SendHorizontal } from "lucide-react";
+import { SendHorizontal } from "lucide-react";
 import useAuthStore from "@/store/useAuthStore";
 import { fetchMessages, type ChatMessage } from "@/lib/api/chat";
 import {
@@ -10,7 +9,6 @@ import {
   type ChatSocket,
   type ChatSocketStatus,
 } from "@/lib/api/chatSocket";
-import { fetchRoomDetail } from "@/lib/api/room";
 import { getMyProfile } from "@/lib/api/profile";
 import { imageColorFromEngName } from "@/lib/profile/constants";
 import { imageUrl } from "@/lib/imageUrl";
@@ -108,17 +106,40 @@ function dayDividerLabel(
   return date === kstDate(new Date()) ? "오늘" : date;
 }
 
+interface ChatRoomProps {
+  /**
+   * 메시지 조회 + STOMP 구독/발행 대상 방 id. 지금은 **스레드 방 id** 다.
+   *
+   * 서버는 발행한 destination 을 그대로 `@SendTo` 로 되돌리고(fan-out 없음),
+   * 운영 중인 모바일 앱이 아직 스레드 방 토픽에 구독 중이다. 컨테이너 방으로
+   * 옮기면 저장은 합쳐지지만 실시간만 앱과 갈라진다 — 그래서 스레드 방을 쓴다.
+   * (백엔드가 두 토픽 동시 브로드캐스트를 넣으면 그때 컨테이너로 전환)
+   */
+  roomId: number;
+  /** 조회 필터. 컨테이너 방으로 조회할 때만 지정한다. */
+  threadId?: number | null;
+  /**
+   * 발행 payload 의 `opinionType` — 선택된 스레드에서의 내 투표.
+   * 서버가 판정하지 않고 클라이언트 값을 그대로 저장하므로 반드시 실어보낸다.
+   */
+  myOpinion: string;
+}
+
 /**
- * 토론방 채팅 화면 (입장 후). 과거 메시지는 REST(커서), 실시간 송수신은
+ * 토론 주제(스레드) 하나의 대화. 과거 메시지는 REST(커서), 실시간 송수신은
  * STOMP over WebSocket(`@/lib/api/chatSocket`).
+ *
+ * 바깥 컬럼(`DebateRoom`)이 높이를 잡고, 여기서는 남는 높이를 채운다.
  * (반응 기능은 이번 범위 아님 — 숨김.)
  * 필드 값 형식(userCommunity/profileColor)은 방어적으로 렌더(로그인 응답 검증 후 조정).
  */
-export default function ChatRoom({ roomId }: { roomId: number }) {
-  const router = useRouter();
+export default function ChatRoom({
+  roomId,
+  threadId,
+  myOpinion,
+}: ChatRoomProps) {
   const { accessToken, isLogin, _hasHydrated } = useAuthStore();
 
-  const [title, setTitle] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -130,8 +151,7 @@ export default function ChatRoom({ roomId }: { roomId: number }) {
   const [socketStatus, setSocketStatus] =
     useState<ChatSocketStatus>("disconnected");
   const [draft, setDraft] = useState("");
-  /** 발행 payload 에 필요한 값(내 투표 / 소속 커뮤니티). 로드 전엔 전송 불가. */
-  const [myOpinion, setMyOpinion] = useState<string | null>(null);
+  /** 발행 payload 에 필요한 값(소속 커뮤니티). 로드 전엔 전송 불가. */
   const [myCommunity, setMyCommunity] = useState<string | null>(null);
   const socketRef = useRef<ChatSocket | null>(null);
 
@@ -163,17 +183,12 @@ export default function ChatRoom({ roomId }: { roomId: number }) {
       try {
         setLoading(true);
         setError(null);
-        const [room, msgs, profile] = await Promise.all([
-          fetchRoomDetail(roomId, accessToken).catch(() => null),
-          fetchMessages(roomId, null, accessToken),
+        const [msgs, profile] = await Promise.all([
+          fetchMessages(roomId, null, accessToken, threadId),
           // 전송 payload 용. 실패해도 읽기는 되어야 하므로 치명적으로 다루지 않는다.
           getMyProfile(accessToken).catch(() => null),
         ]);
         if (cancelled) return;
-        if (room) {
-          setTitle(room.title);
-          setMyOpinion(room.opinion);
-        }
         if (profile) setMyCommunity(profile.community?.name ?? null);
         setMessages(toAscending(msgs.items));
         setCursor(msgs.nextCursor);
@@ -193,7 +208,7 @@ export default function ChatRoom({ roomId }: { roomId: number }) {
     return () => {
       cancelled = true;
     };
-  }, [_hasHydrated, isLogin, accessToken, roomId, retryKey]);
+  }, [_hasHydrated, isLogin, accessToken, roomId, threadId, retryKey]);
 
   // ── 실시간 소켓 (구독 + 전송) ─────────────────────
   useEffect(() => {
@@ -222,14 +237,13 @@ export default function ChatRoom({ roomId }: { roomId: number }) {
   }, [_hasHydrated, isLogin, accessToken, roomId]);
 
   // payload 에 필요한 값이 모두 있을 때만 전송 가능.
-  const canSend =
-    socketStatus === "connected" && myOpinion !== null && myCommunity !== null;
+  const canSend = socketStatus === "connected" && myCommunity !== null;
 
   const send = () => {
     const content = draft.trim();
     // 서버 제약: 1자 이상 500자 이하 (Swagger ChatMessageResponse.content)
     if (!content || content.length > 500) return;
-    if (myOpinion === null || myCommunity === null) return;
+    if (myCommunity === null) return;
     const sent = socketRef.current?.publish({
       content,
       opinionType: myOpinion,
@@ -246,7 +260,7 @@ export default function ChatRoom({ roomId }: { roomId: number }) {
     const el = scrollRef.current;
     restoreOffsetRef.current = el ? el.scrollHeight - el.scrollTop : null;
     try {
-      const msgs = await fetchMessages(roomId, cursor, accessToken);
+      const msgs = await fetchMessages(roomId, cursor, accessToken, threadId);
       // 이전(과거) 대화 → 위에 붙임.
       setMessages((prev) => [...toAscending(msgs.items), ...prev]);
       setCursor(msgs.nextCursor);
@@ -303,9 +317,11 @@ export default function ChatRoom({ roomId }: { roomId: number }) {
 
   if (!isLogin) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 py-20">
+      // 대화는 인증이 필요하다(메시지 조회가 401). 탭·찬반 현황은 바깥에서
+      // 비로그인도 볼 수 있으므로 여기만 로그인 안내로 대체한다.
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
         <p className="text-body-16 font-medium text-text-primary">
-          로그인 후 이용할 수 있어요.
+          로그인 후 대화에 참여할 수 있어요.
         </p>
         <button
           type="button"
@@ -320,27 +336,10 @@ export default function ChatRoom({ roomId }: { roomId: number }) {
   }
 
   return (
-    // 고정 높이 컬럼 — 헤더/입력창은 고정되고 메시지 목록만 스크롤한다.
-    // 입력창을 뷰포트 하단에 붙이기 위해 레이아웃이 잡아먹는 높이를 뺀다.
-    // RedditLayout: 헤더 pt-14(3.5rem) + main 내부 p-4 상단(1rem)
-    //               + 하단 pb-20(5rem) / lg:pb-4(1rem)
-    // dvh 를 쓰는 이유는 모바일 브라우저 주소창 높이 변화 대응.
-    <div className="flex h-[calc(100dvh-9.5rem)] flex-col lg:h-[calc(100dvh-5.5rem)]">
-      {/* 헤더 (상단 고정) */}
-      <div className="flex flex-shrink-0 items-center gap-2 border-b border-border pb-3">
-        <button
-          type="button"
-          onClick={() => router.push(`/room/${roomId}`)}
-          aria-label="뒤로"
-          className="text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <h1 className="line-clamp-1 text-body-16 font-bold text-text-primary">
-          {title || "토론방"}
-        </h1>
-      </div>
-
+    // 바깥 컬럼이 잡아준 높이 안에서 남는 공간을 채운다. 입력창은 아래에 고정되고
+    // 메시지 목록만 스크롤한다. min-h-0 이 없으면 flex 자식이 내용 높이만큼
+    // 늘어나 스크롤 영역이 생기지 않는다.
+    <div className="flex min-h-0 flex-1 flex-col">
       {error && (
         <div className="flex flex-shrink-0 flex-col items-center gap-3 py-10">
           <p className="text-body-14 text-red">{error}</p>
@@ -562,8 +561,7 @@ function SystemRow({ msg }: { msg: ChatMessage }) {
 // ── Skeleton ──────────────────────────────────────
 function ChatSkeleton() {
   return (
-    <div className="flex flex-col gap-4 py-4">
-      <div className="h-6 w-1/2 rounded bg-grey-90 animate-pulse" />
+    <div className="flex min-h-0 flex-1 flex-col gap-4 py-3">
       {[1, 2, 3, 4].map((i) => (
         <div key={i} className="flex gap-2.5">
           <div className="h-9 w-9 flex-shrink-0 rounded-full bg-grey-90 animate-pulse" />

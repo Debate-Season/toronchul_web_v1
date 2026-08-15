@@ -28,12 +28,15 @@ export function issueHref(issueId: number, title: string): string {
   return `/issue/${toBase36(issueId)}/${toSlug(title)}`;
 }
 
-/** 토론방 상세 경로 생성 (이슈 하위) */
-export function roomHref(
+/**
+ * 토론방 경로 생성. 토론방은 이슈당 하나이고, 경로 끝의 스레드(토론 주제)가
+ * 진입 시 열릴 탭을 결정한다 — URL 만 보고 어떤 주제를 보는지 알 수 있어야 한다.
+ */
+export function threadHref(
   issueId: number,
   issueTitle: string,
-  roomId: number,
-  roomTitle: string,
+  threadId: number,
+  threadTitle: string,
 ): string {
-  return `/issue/${toBase36(issueId)}/${toSlug(issueTitle)}/${toBase36(roomId)}/${toSlug(roomTitle)}`;
+  return `/issue/${toBase36(issueId)}/${toSlug(issueTitle)}/${toBase36(threadId)}/${toSlug(threadTitle)}`;
 }

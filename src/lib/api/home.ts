@@ -10,17 +10,6 @@ export interface IssueRoom {
   bookMarks: number;
 }
 
-export interface ChatRoomResponse {
-  chatRoomId: number;
-  title: string;
-  content: string;
-  agree: number;
-  disagree: number;
-  createdAt: string;
-  opinion: "AGREE" | "DISAGREE";
-  time: string;
-}
-
 export interface BestChatRoom {
   issueId: number;
   issueTitle: string;
@@ -53,7 +42,6 @@ export interface YoutubeLiveItem {
 /** /api/v1/users/home 응답 — 구조가 배열 또는 객체일 수 있음 */
 export interface HomeResponse {
   issueRooms: IssueRoom[];
-  chatRooms: ChatRoomResponse[];
   bestChatRooms: BestChatRoom[];
 }
 
@@ -87,7 +75,7 @@ export async function fetchHome(
   // 응답 형태에 따라 유연하게 파싱
   if (Array.isArray(raw)) {
     // data가 배열이면 이슈방 목록으로 취급
-    return { issueRooms: raw, chatRooms: [], bestChatRooms: [] };
+    return { issueRooms: raw, bestChatRooms: [] };
   }
 
   const obj = raw as Record<string, unknown>;
@@ -96,7 +84,6 @@ export async function fetchHome(
     issueRooms: toArray(
       obj.issueRooms ?? obj.issues ?? obj.top5BestIssueRooms ?? obj.items,
     ),
-    chatRooms: toArray(obj.chatRooms ?? obj.chatRoomResponse),
     bestChatRooms: toArray(obj.bestChatRooms ?? obj.top5BestChatRooms),
   };
 }

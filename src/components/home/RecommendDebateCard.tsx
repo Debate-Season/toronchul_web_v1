@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { BestChatRoom } from "@/lib/api/home";
-import { roomHref } from "@/lib/slug";
+import { threadHref } from "@/lib/slug";
 import DeVoteGauge from "@/components/TDS/DeVoteGauge";
 
 export interface DebateVote {
@@ -9,7 +9,8 @@ export interface DebateVote {
 }
 
 /**
- * "이런 토론은 어때요?" 섹션용 가로 행 카드. 토론방 이름 + 소속 이슈명.
+ * "이런 토론은 어때요?" 섹션용 가로 행 카드. 토론 주제 + 소속 이슈명.
+ * 누르면 그 주제 탭이 열린 토론방(대화 화면)으로 바로 들어간다.
  * 우측 게이지는 vote 미로드 시에도 고정 폭으로 자리를 지켜(??%) 레이아웃 시프트를 막는다.
  */
 export default function RecommendDebateCard({
@@ -21,7 +22,7 @@ export default function RecommendDebateCard({
 }) {
   return (
     <Link
-      href={roomHref(data.issueId, data.issueTitle, data.debateId, data.debateTitle)}
+      href={threadHref(data.issueId, data.issueTitle, data.debateId, data.debateTitle)}
       className="block"
     >
       <article className="flex items-center gap-3 rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70">

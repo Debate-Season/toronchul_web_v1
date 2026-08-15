@@ -1,7 +1,6 @@
 "use client";
 
 import { Children, useEffect, useMemo, useRef, useState, useCallback } from "react";
-import IssueCard from "@/components/home/IssueCard";
 import IssueCardNew from "@/components/home/IssueCardNew";
 import YoutubeLiveCard from "@/components/home/YoutubeLiveCard";
 import RecommendDebateCard, {
@@ -14,13 +13,12 @@ import {
   fetchBestChatRooms,
   type IssueRoom,
   type BestChatRoom,
-  type ChatRoomResponse,
   type MediaItem,
   type MediaResponse,
 } from "@/lib/api/home";
 import { fetchRoomDetail } from "@/lib/api/room";
 import useAuthStore from "@/store/useAuthStore";
-import { Radio, Newspaper, Flame, Lightbulb, MessagesSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { Radio, Newspaper, Lightbulb, MessagesSquare, ChevronLeft, ChevronRight } from "lucide-react";
 
 // 배열에서 랜덤 n개 추출 (원본 불변, Fisher–Yates 부분 셔플).
 function pickRandom<T>(arr: readonly T[], n: number): T[] {
@@ -329,7 +327,6 @@ export default function Home() {
 
   const [issueRooms, setIssueRooms] = useState<IssueRoom[]>([]);
   const [bestChatRooms, setBestChatRooms] = useState<BestChatRoom[]>([]);
-  const [chatRooms, setChatRooms] = useState<ChatRoomResponse[]>([]);
   const [mediaResponse, setMediaResponse] = useState<MediaResponse>({ youtubeLive: [], items: [] });
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -398,7 +395,6 @@ export default function Home() {
         if (!cancelled) {
           setIssueRooms(homeData.issueRooms);
           setBestChatRooms(bestRooms);
-          setChatRooms(homeData.chatRooms);
           setMediaResponse(mediaData);
         }
       } catch (err) {
@@ -424,7 +420,7 @@ export default function Home() {
   }
 
   // ── Error (데이터 없을 때) ──
-  if (error && issueRooms.length === 0 && chatRooms.length === 0) {
+  if (error && issueRooms.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-body-16 text-red">{error}</p>
@@ -445,7 +441,6 @@ export default function Home() {
     youtubeLive.length > 0 ||
     bestChatRooms.length > 0 ||
     media.length > 0 ||
-    chatRooms.length > 0 ||
     issueRooms.length > 0;
 
   return (
@@ -516,23 +511,6 @@ export default function Home() {
           onCategoryChange={setSelectedCategory}
           token={accessToken}
         />
-      )}
-
-      {/* ④ 뜨겁게 논쟁 중인 찬반토론 (세로 리스트) */}
-      {chatRooms.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <Flame size={20} className="text-red" />
-            <h2 className="text-header-20 font-bold text-text-primary">
-              뜨겁게 논쟁 중인 찬반토론
-            </h2>
-          </div>
-          <div className="flex flex-col gap-3">
-            {chatRooms.map((room) => (
-              <IssueCard key={room.chatRoomId} data={room} />
-            ))}
-          </div>
-        </section>
       )}
 
       {/* 데이터가 하나도 없을 때 */}
