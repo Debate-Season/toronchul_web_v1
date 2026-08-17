@@ -36,7 +36,9 @@ export default function ThreadTabs({
     <div
       role="tablist"
       aria-label="토론 주제"
-      className="flex flex-shrink-0 gap-2 overflow-x-auto pb-2"
+      // 가로 스크롤바는 숨긴다 — 탭이 잘린 것 자체가 스크롤 힌트이고,
+      // 막대가 탭과 대화 사이에 회색 줄로 끼어들어 경계를 흐린다.
+      className="scrollbar-none flex flex-shrink-0 gap-2 overflow-x-auto pb-3"
     >
       {threads.map((thread) => {
         const active = thread.threadId === selectedThreadId;

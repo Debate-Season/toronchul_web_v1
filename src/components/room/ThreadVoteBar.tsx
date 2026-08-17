@@ -18,7 +18,8 @@ interface ThreadVoteBarProps {
 }
 
 /**
- * 선택된 토론 주제(스레드)의 찬반 현황 + 투표. 토론방 채팅 위에 얹힌다.
+ * 선택된 토론 주제(스레드)의 찬반 현황 + 투표. **`ThreadPanel` 안에 놓인다** —
+ * 카드 테두리·패딩·주제 제목은 패널 쪽 책임이라 여기서는 내용만 그린다.
  *
  * 투표는 **입장 조건이 아니다** — 투표하지 않아도 대화는 읽고 쓸 수 있고,
  * 투표하면 내 말풍선의 정렬·색만 달라진다. 투표 API 는 스레드 단위이므로
@@ -67,7 +68,7 @@ export default function ThreadVoteBar({
   };
 
   return (
-    <div className="flex flex-shrink-0 flex-col gap-2 border-b border-border py-3">
+    <div className="flex flex-col gap-2.5">
       <DeVoteGauge agree={agreeCount} disagree={disagreeCount} size="md" />
 
       <div className="flex gap-2">

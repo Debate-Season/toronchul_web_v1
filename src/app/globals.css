@@ -146,6 +146,18 @@
   border-radius: 3px;
 }
 
+/* ── 스크롤바 숨김 ───────────────────────────────────────── */
+/* 잘린 내용 자체가 스크롤 힌트인 곳(토론 주제 탭 스트립)에 쓴다. 스크롤은
+   그대로 동작하고 막대만 숨긴다. 세로 스크롤 영역에는 쓰지 말 것 — 목록의
+   현재 위치를 알 방법이 없어진다. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Base Styles ──────────────────────────────────────────── */
 /* 모달 오픈 시 body overflow:hidden 으로 스크롤바가 사라지며 페이지가
    흔들리는 것을 방지 — 스크롤바 gutter 를 항상 예약해 둔다. */

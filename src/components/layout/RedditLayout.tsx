@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Home, Map, User, Settings, LogIn, LogOut, Flame, X, Download, Smartphone } from "lucide-react";
+import { User, Settings, LogIn, LogOut, Flame, Menu, Download } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -14,28 +14,20 @@ import { performLogout } from "@/lib/auth/logout";
 import DeConfirmDialog from "@/components/TDS/DeConfirmDialog";
 import LoginModal from "@/components/auth/LoginModal";
 import YoutubeFloatingPlayer from "@/components/home/YoutubeFloatingPlayer";
+import AppDownloadModal from "@/components/layout/AppDownloadModal";
+import MobileNavModal from "@/components/layout/MobileNavModal";
+import { PUBLIC_NAV_ITEMS } from "@/components/layout/navItems";
+import { RNB_SLOT_ID } from "@/lib/layoutSlots";
 
-// ── 공통 메뉴 (비로그인도 접근 가능) ──────────────────
-const PUBLIC_NAV_ITEMS = [
-  { href: "/", label: "홈", icon: Home },
-  { href: "/map", label: "이슈맵", icon: Map },
-] as const;
-
-function AppleIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 18 18"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M14.94 13.41c-.33.76-.49 1.1-.91 1.77-.59.93-1.43 2.09-2.46 2.1-1.03.01-1.29-.67-2.69-.66-1.39.01-1.68.67-2.71.66-1.04-.01-1.83-1.05-2.42-1.98C2.25 13.01 2.1 10.2 3.21 8.71c.79-1.06 2.03-1.68 3.19-1.68 1.19 0 1.94.67 2.92.67.96 0 1.54-.67 2.92-.67.99 0 2.09.49 2.88 1.34-2.53 1.39-2.12 5.01.82 5.04ZM11.51 5.34c.46-.59.81-1.42.68-2.27-.75.05-1.63.53-2.14 1.15-.46.56-.85 1.4-.7 2.21.82.03 1.67-.46 2.16-1.09Z"
-        fill="white"
-      />
-    </svg>
-  );
+/**
+ * 토론방 라우트(`/issue/[id]/[slug]/[threadId]/[threadSlug]`) 판별.
+ *
+ * 이 화면에서만 우측 사이드바가 "실시간 핫한 토론" 대신 **토론방이 채우는 빈
+ * 자리**가 된다. 이슈 상세(`/issue/[id]/[slug]`, 세그먼트 3개)는 해당 없다.
+ */
+function isDebateRoomPath(pathname: string): boolean {
+  const segments = pathname.split("/").filter(Boolean);
+  return segments.length === 5 && segments[0] === "issue";
 }
 
 // ── Top Bar ────────────────────────────────────────
@@ -49,6 +41,8 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
   const [showLogin, setShowLogin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showNav, setShowNav] = useState(false);
+  const [showAppDownload, setShowAppDownload] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // 드롭다운: 바깥 클릭·ESC 로 닫기
@@ -149,6 +143,21 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
     </div>
   );
 
+  // 모바일 전역 메뉴 트리거. `lg` 이상은 좌측 LNB 가 상시 노출이라 숨긴다.
+  // 위치는 프로필 아이콘(비로그인이면 로그인 버튼)의 오른쪽.
+  const hamburger = (
+    <button
+      type="button"
+      onClick={() => setShowNav(true)}
+      aria-label="메뉴"
+      aria-haspopup="dialog"
+      aria-expanded={showNav}
+      className="flex h-9 w-9 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-grey-90 hover:text-text-primary cursor-pointer lg:hidden"
+    >
+      <Menu size={22} />
+    </button>
+  );
+
   return (
     <>
       <header className="fixed top-0 left-0 w-full h-14 z-50 flex items-center justify-between px-4 bg-surface border-b border-border">
@@ -159,21 +168,34 @@ function TopBar({ minimal = false }: { minimal?: boolean }) {
             {logo}
           </Link>
         )}
-        {minimal ? (
-          profileMenu
-        ) : _hasHydrated && !accessToken ? (
-          <button
-            type="button"
-            onClick={() => setShowLogin(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-body-14 font-semibold text-white transition-colors hover:opacity-90 cursor-pointer"
-          >
-            <LogIn size={16} />
-            로그인
-          </button>
-        ) : (
-          profileMenu
-        )}
+        <div className="flex items-center gap-1.5">
+          {minimal ? (
+            profileMenu
+          ) : _hasHydrated && !accessToken ? (
+            <button
+              type="button"
+              onClick={() => setShowLogin(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-brand px-4 py-2 text-body-14 font-semibold text-white transition-colors hover:opacity-90 cursor-pointer"
+            >
+              <LogIn size={16} />
+              로그인
+            </button>
+          ) : (
+            profileMenu
+          )}
+          {!minimal && hamburger}
+        </div>
       </header>
+
+      {showNav && (
+        <MobileNavModal
+          onClose={() => setShowNav(false)}
+          onAppDownload={() => setShowAppDownload(true)}
+        />
+      )}
+      {showAppDownload && (
+        <AppDownloadModal onClose={() => setShowAppDownload(false)} />
+      )}
 
       {!minimal && showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       {showLogoutConfirm && (
@@ -194,7 +216,7 @@ function LeftSidebar() {
   const pathname = usePathname();
   const [showAppDownload, setShowAppDownload] = useState(false);
 
-  // 프로필은 우측 상단 아이콘(다이얼로그)으로 접근. 좌측 메뉴에서는 제외.
+  // 모바일 메뉴와 같은 목록을 쓴다(`navItems.ts`).
   const navItems = PUBLIC_NAV_ITEMS;
 
   return (
@@ -243,7 +265,22 @@ function LeftSidebar() {
 }
 
 // ── Right Sidebar (RNB) ───────────────────────────
+// 토론방에서는 토론방이 portal 로 채우는 빈 자리, 그 외에는 "실시간 핫한 토론".
+// 레이아웃이 `room/` 컴포넌트를 직접 import 하지 않으려는 것 — 불문율 #7.
 function RightSidebar() {
+  const pathname = usePathname();
+  const inDebateRoom = isDebateRoomPath(pathname);
+
+  return (
+    <aside className="fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] hidden md:block overflow-y-auto">
+      <div className="p-4">
+        {inDebateRoom ? <div id={RNB_SLOT_ID} /> : <HotDebateCard />}
+      </div>
+    </aside>
+  );
+}
+
+function HotDebateCard() {
   const { accessToken, _hasHydrated } = useAuthStore();
   const [topics, setTopics] = useState<BestChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -271,181 +308,55 @@ function RightSidebar() {
   }, [_hasHydrated, accessToken]);
 
   return (
-    <aside className="fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] hidden md:block overflow-y-auto">
-      <div className="p-4">
-        <div className="rounded-xl border border-border p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Flame size={18} className="text-red" />
-            <h3 className="text-body-14 font-semibold text-text-primary">
-              실시간 핫한 토론
-            </h3>
-          </div>
-
-          {loading ? (
-            <ul className="flex flex-col gap-3">
-              {[1, 2, 3].map((i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <div className="w-4 h-5 rounded bg-grey-90 animate-pulse" />
-                  <div className="flex-1">
-                    <div className="h-5 rounded bg-grey-90 animate-pulse mb-1" />
-                    <div className="h-4 w-16 rounded bg-grey-90 animate-pulse" />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : topics.length > 0 ? (
-            <ul className="flex flex-col gap-3">
-              {topics.map((topic, idx) => (
-                <li key={topic.debateId}>
-                  <Link
-                    href={threadHref(topic.issueId, topic.issueTitle, topic.debateId, topic.debateTitle)}
-                    className="flex items-start gap-3 rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-grey-90 cursor-pointer"
-                  >
-                    <span className="text-body-14 font-bold text-brand">
-                      {idx + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-body-14 font-medium text-text-primary truncate">
-                        {topic.debateTitle}
-                      </p>
-                      <p className="text-caption-12 text-text-secondary">
-                        {topic.issueTitle}
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-caption-12 text-text-secondary">
-              아직 인기 토론이 없습니다.
-            </p>
-          )}
-        </div>
+    <div className="rounded-xl border border-border p-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Flame size={18} className="text-red" />
+        <h3 className="text-body-14 font-semibold text-text-primary">
+          실시간 핫한 토론
+        </h3>
       </div>
-    </aside>
-  );
-}
 
-// ── 앱 다운로드 모달 ──────────────────────────────
-function AppDownloadModal({ onClose }: { onClose: () => void }) {
-  const handleBackdrop = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
-  };
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
-
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/50"
-      onClick={handleBackdrop}
-    >
-      <div className="relative w-full sm:max-w-sm sm:mx-4 rounded-t-2xl sm:rounded-2xl bg-surface p-6 pb-8">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-        >
-          <X size={20} />
-        </button>
-
-        <div className="flex items-center gap-3 mb-2">
-          <Smartphone size={24} className="text-brand" />
-          <h2 className="text-header-20 font-bold text-text-primary">앱 다운로드</h2>
-        </div>
-        <p className="text-body-14 text-text-secondary mb-6">
-          토론철 앱에서 더 편리하게 이용하세요
+      {loading ? (
+        <ul className="flex flex-col gap-3">
+          {[1, 2, 3].map((i) => (
+            <li key={i} className="flex items-start gap-3">
+              <div className="w-4 h-5 rounded bg-grey-90 animate-pulse" />
+              <div className="flex-1">
+                <div className="h-5 rounded bg-grey-90 animate-pulse mb-1" />
+                <div className="h-4 w-16 rounded bg-grey-90 animate-pulse" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : topics.length > 0 ? (
+        <ul className="flex flex-col gap-3">
+          {topics.map((topic, idx) => (
+            <li key={topic.debateId}>
+              <Link
+                href={threadHref(topic.issueId, topic.issueTitle, topic.debateId, topic.debateTitle)}
+                className="flex items-start gap-3 rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-grey-90 cursor-pointer"
+              >
+                <span className="text-body-14 font-bold text-brand">
+                  {idx + 1}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-body-14 font-medium text-text-primary truncate">
+                    {topic.debateTitle}
+                  </p>
+                  <p className="text-caption-12 text-text-secondary">
+                    {topic.issueTitle}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-caption-12 text-text-secondary">
+          아직 인기 토론이 없습니다.
         </p>
-
-        <div className="flex flex-col gap-3">
-          <a
-            href="https://play.google.com/store/apps/details?id=com.rosyocean.debateseason"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full rounded-xl bg-surface-elevated border border-border py-3.5 text-body-16 font-medium text-text-primary transition-colors hover:bg-grey-90 cursor-pointer"
-          >
-            <GooglePlayIcon />
-            Google Play
-          </a>
-          <a
-            href="https://apps.apple.com/kr/app/%ED%86%A0%EB%A1%A0%EC%B2%A0/id6739631545"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full rounded-xl bg-surface-elevated border border-border py-3.5 text-body-16 font-medium text-text-primary transition-colors hover:bg-grey-90 cursor-pointer"
-          >
-            <AppleIcon />
-            App Store
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GooglePlayIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M3.61 1.814A1.82 1.82 0 0 0 3 3.396v17.209a1.82 1.82 0 0 0 .61 1.581l.084.074 9.647-9.647v-.228L3.694 1.74l-.083.074Z" fill="#4285F4"/>
-      <path d="m16.557 15.828-3.215-3.216v-.228l3.216-3.216.072.042 3.81 2.164c1.088.618 1.088 1.63 0 2.249l-3.81 2.164-.073.041Z" fill="#FBBC04"/>
-      <path d="m16.63 15.787-3.288-3.289L3.61 22.23c.36.38.951.426 1.618.048l11.4-6.49" fill="#EA4335"/>
-      <path d="m16.63 8.21-11.4-6.49c-.668-.378-1.26-.332-1.619.049l9.731 9.73 3.288-3.288Z" fill="#34A853"/>
-    </svg>
-  );
-}
-
-// ── Bottom Nav (모바일) ────────────────────────────
-function BottomNav() {
-  const pathname = usePathname();
-  const [showAppDownload, setShowAppDownload] = useState(false);
-
-  // 프로필은 우측 상단 아이콘(다이얼로그)으로 접근. 하단 탭에서는 제외.
-  const navItems = PUBLIC_NAV_ITEMS;
-
-  return (
-    <>
-      <nav className="fixed bottom-0 left-0 w-full h-16 z-50 flex items-center justify-around bg-surface border-t border-border lg:hidden">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href;
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex flex-col items-center gap-1 text-caption-12 font-medium transition-colors ${
-                isActive ? "text-brand" : "text-text-secondary"
-              }`}
-            >
-              <Icon size={22} />
-              {label}
-            </Link>
-          );
-        })}
-        <button
-          type="button"
-          onClick={() => setShowAppDownload(true)}
-          className="flex flex-col items-center gap-1 text-caption-12 font-medium text-text-secondary transition-colors cursor-pointer"
-        >
-          <Download size={22} />
-          앱 다운로드
-        </button>
-      </nav>
-
-      {showAppDownload && (
-        <AppDownloadModal onClose={() => setShowAppDownload(false)} />
       )}
-    </>
+    </div>
   );
 }
 
@@ -480,8 +391,8 @@ export default function RedditLayout({
 }) {
   const pathname = usePathname();
 
-  // 신규 가입 온보딩은 좌/우 사이드바·하단탭 없는 별도 전체화면 페이지.
-  // 상단 바는 로고만(홈 이동·프로필·로그인 액션 없음) 유지.
+  // 신규 가입 온보딩은 좌/우 사이드바 없는 별도 전체화면 페이지.
+  // 상단 바는 로고만(홈 이동·프로필·로그인·메뉴 액션 없음) 유지.
   if (pathname.startsWith("/onboarding")) {
     return (
       <>
@@ -500,11 +411,14 @@ export default function RedditLayout({
       <LeftSidebar />
       <RightSidebar />
 
+      {/*
+        하단 고정 탭을 상단 햄버거 메뉴로 옮기면서 모바일 하단 여백(pb-20)이
+        필요 없어졌다. 덕분에 토론방의 높이 계산도 브레이크포인트별로 갈리지
+        않고 한 값으로 통일된다(`DebateRoom` 참고).
+      */}
       <main className="pt-14 md:mr-80 lg:ml-64 min-h-screen flex justify-center">
-        <div className="max-w-2xl w-full p-4 pb-20 lg:pb-4">{children}</div>
+        <div className="max-w-2xl w-full p-4">{children}</div>
       </main>
-
-      <BottomNav />
 
       {/* 유튜브 라이브 플로팅 플레이어 — 레이아웃에 마운트되어 페이지 이동 중에도 재생 유지 */}
       <YoutubeFloatingPlayer />

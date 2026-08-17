@@ -1,19 +1,33 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { fetchIssueRoom, type IssueRoomResponse } from "@/lib/api/room";
 import { issueHref } from "@/lib/slug";
+import { RNB_SLOT_ID } from "@/lib/layoutSlots";
 import useAuthStore from "@/store/useAuthStore";
 import ThreadTabs from "@/components/room/ThreadTabs";
-import ThreadVoteBar from "@/components/room/ThreadVoteBar";
+import ThreadPanel from "@/components/room/ThreadPanel";
 import ChatRoom from "@/components/room/ChatRoom";
 
 interface DebateRoomProps {
   issueId: number;
   /** URL 이 가리키는 토론 주제. 목록에 없으면 첫 주제로 폴백한다. */
   threadId: number;
+}
+
+/**
+ * URL 의 주제가 사라졌거나 이 이슈의 것이 아니면 첫 주제를 보여준다.
+ * (탭 링크가 곧 올바른 URL 이므로 별도 리다이렉트는 하지 않는다.)
+ * 주제가 하나도 없으면 undefined.
+ */
+function resolveThread(
+  threads: IssueRoomResponse["threads"],
+  threadId: number,
+): IssueRoomResponse["threads"][number] | undefined {
+  return threads.find((t) => t.threadId === threadId) ?? threads[0];
 }
 
 /**
@@ -25,6 +39,13 @@ interface DebateRoomProps {
  */
 export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
   const { accessToken, _hasHydrated } = useAuthStore();
+
+  // 우측 사이드바가 내준 자리. 레이아웃이 먼저 렌더되므로 마운트 시점에 이미
+  // 존재하지만, SSR 에는 없으므로 effect 로 잡는다.
+  const [rnbSlot, setRnbSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setRnbSlot(document.getElementById(RNB_SLOT_ID));
+  }, []);
 
   const [data, setData] = useState<IssueRoomResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +103,9 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
 
   const backHref = issueHref(issueId, data.issueTitle);
 
-  if (data.threads.length === 0) {
+  const thread = resolveThread(data.threads, threadId);
+
+  if (!thread) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-body-16 text-text-secondary">
@@ -98,15 +121,12 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
     );
   }
 
-  // URL 의 주제가 사라졌거나 이 이슈의 것이 아니면 첫 주제를 보여준다.
-  // (탭 링크가 곧 올바른 URL 이므로 별도 리다이렉트는 하지 않는다.)
-  const thread =
-    data.threads.find((t) => t.threadId === threadId) ?? data.threads[0];
-
   return (
-    // 높이 계산 근거는 RedditLayout 의 패딩 — 헤더 pt-14(3.5rem) + main p-4 상단(1rem)
-    // + 하단 pb-20(5rem) / lg:pb-4(1rem). dvh 는 모바일 주소창 높이 변화 대응.
-    <div className="flex h-[calc(100dvh-9.5rem)] flex-col lg:h-[calc(100dvh-5.5rem)]">
+    // 높이 계산 근거는 RedditLayout 의 패딩 — 헤더 pt-14(3.5rem) + main p-4
+    // 상하(1rem + 1rem). 하단 고정 탭이 햄버거 메뉴로 바뀌면서 모바일 전용
+    // pb-20 이 사라져 브레이크포인트 분기 없이 한 값이 됐다.
+    // dvh 는 모바일 주소창 높이 변화 대응 — vh 면 주소창이 접힐 때 입력창이 잘린다.
+    <div className="flex h-[calc(100dvh-5.5rem)] flex-col">
       {/* 이슈로 돌아가기 + 이슈 제목 */}
       <Link
         href={backHref}
@@ -124,17 +144,16 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
         selectedThreadId={thread.threadId}
       />
 
-      {/* 선택된 주제 + 찬반 */}
-      <h1 className="flex-shrink-0 pb-2 text-body-16 font-bold text-text-primary">
-        {thread.title}
-      </h1>
-      <ThreadVoteBar
-        threadId={thread.threadId}
-        agreeCount={thread.agreeCount}
-        disagreeCount={thread.disagreeCount}
-        myOpinion={thread.myOpinion}
-        onVoted={reload}
-      />
+      {/*
+        주제·찬반·투표는 우측 사이드바에 그린다. 사이드바가 없는 `md` 미만에서만
+        본문 상단에 같은 패널을 놓는다 — 안 그러면 투표에 닿을 수 없다.
+        CSS 로 한쪽만 표시되므로 보조기술에도 하나만 노출된다.
+      */}
+      <div className="flex-shrink-0 pb-3 md:hidden">
+        <ThreadPanel thread={thread} onVoted={reload} />
+      </div>
+      {rnbSlot &&
+        createPortal(<ThreadPanel thread={thread} onVoted={reload} />, rnbSlot)}
 
       {/* 대화 — 남는 높이를 채우고 이 안에서만 스크롤 */}
       <ChatRoom
@@ -159,11 +178,14 @@ function DebateRoomSkeleton() {
           />
         ))}
       </div>
-      <div className="h-5 w-3/4 rounded bg-grey-90 animate-pulse" />
-      <div className="h-2 w-full rounded-full bg-grey-90 animate-pulse" />
-      <div className="flex gap-2">
-        <div className="h-8 flex-1 rounded-lg bg-grey-90 animate-pulse" />
-        <div className="h-8 flex-1 rounded-lg bg-grey-90 animate-pulse" />
+      {/* 주제 패널 — 데스크톱에서는 사이드바에 있으므로 본문 스켈레톤은 모바일만 */}
+      <div className="flex flex-col gap-3 rounded-xl border border-border p-4 md:hidden">
+        <div className="h-5 w-3/4 rounded bg-grey-90 animate-pulse" />
+        <div className="h-2 w-full rounded-full bg-grey-90 animate-pulse" />
+        <div className="flex gap-2">
+          <div className="h-8 flex-1 rounded-lg bg-grey-90 animate-pulse" />
+          <div className="h-8 flex-1 rounded-lg bg-grey-90 animate-pulse" />
+        </div>
       </div>
       {[1, 2, 3].map((i) => (
         <div key={i} className="mt-2 flex gap-2.5">
