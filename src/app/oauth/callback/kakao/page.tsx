@@ -6,6 +6,7 @@ import { loginWithOidc } from "@/lib/api/auth";
 import useAuthStore from "@/store/useAuthStore";
 import { verifyOAuthState, exchangeCodeForIdToken } from "@/lib/auth/kakao";
 import { nextAfterLogin } from "@/lib/auth/postLoginRedirect";
+import { capture } from "@/lib/analytics/client";
 
 export default function KakaoCallbackPage() {
   return (
@@ -49,6 +50,10 @@ function KakaoCallbackContent() {
 
     // 카카오에서 에러로 돌아온 경우
     if (errorParam) {
+      capture({
+        name: "login_failed",
+        props: { provider: "kakao", reason: "provider_error" },
+      });
       setError("카카오 인증이 취소되었습니다.");
       return;
     }
@@ -60,6 +65,10 @@ function KakaoCallbackContent() {
     }
 
     if (!verifyOAuthState(state)) {
+      capture({
+        name: "login_failed",
+        props: { provider: "kakao", reason: "invalid_state" },
+      });
       setError("잘못된 인증 요청입니다. 다시 로그인해 주세요.");
       return;
     }
@@ -69,8 +78,12 @@ function KakaoCallbackContent() {
   }, [searchParams]);
 
   async function handleKakaoLogin(code: string) {
+    // 실패 사유는 서버 문구가 아니라 우리가 정한 분류를 싣는다. 카카오 토큰
+    // 교환이 깨진 것과 우리 백엔드가 거절한 것은 대응이 전혀 다르다.
+    let stage: "token_exchange" | "login_api" = "token_exchange";
     try {
       const idToken = await exchangeCodeForIdToken(code);
+      stage = "login_api";
 
       const result = await loginWithOidc({
         socialType: "kakao",
@@ -81,8 +94,17 @@ function KakaoCallbackContent() {
       setProfileStatus(result.profileStatus);
       setTermsStatus(result.termsStatus);
 
+      capture({
+        name: "login_succeeded",
+        props: { provider: "kakao", is_new_user: !result.profileStatus },
+      });
+
       router.push(nextAfterLogin(result.termsStatus, result.profileStatus));
     } catch (err) {
+      capture({
+        name: "login_failed",
+        props: { provider: "kakao", reason: stage },
+      });
       setError(toUserMessage(err));
     }
   }

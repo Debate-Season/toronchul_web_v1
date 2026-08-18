@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import RedditLayout from "@/components/layout/RedditLayout";
+import Analytics from "@/components/analytics/Analytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased">
+        <Analytics />
         <RedditLayout>{children}</RedditLayout>
         {modal}
       </body>

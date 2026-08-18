@@ -6,6 +6,7 @@ import { loginWithOidc } from "@/lib/api/auth";
 import useAuthStore from "@/store/useAuthStore";
 import { verifyAppleOAuthState } from "@/lib/auth/apple";
 import { nextAfterLogin } from "@/lib/auth/postLoginRedirect";
+import { capture } from "@/lib/analytics/client";
 
 export default function AppleCallbackPage() {
   return (
@@ -56,6 +57,10 @@ function AppleCallbackContent() {
 
     // Apple 에서 에러로 돌아온 경우
     if (errorParam) {
+      capture({
+        name: "login_failed",
+        props: { provider: "apple", reason: "provider_error" },
+      });
       if (errorParam === "user_cancelled_authorize") {
         setError("Apple 인증이 취소되었습니다.");
       } else {
@@ -71,6 +76,10 @@ function AppleCallbackContent() {
     }
 
     if (!verifyAppleOAuthState(state)) {
+      capture({
+        name: "login_failed",
+        props: { provider: "apple", reason: "invalid_state" },
+      });
       setError("잘못된 인증 요청입니다. 다시 로그인해 주세요.");
       return;
     }
@@ -92,9 +101,18 @@ function AppleCallbackContent() {
       setProfileStatus(result.profileStatus);
       setTermsStatus(result.termsStatus);
 
+      capture({
+        name: "login_succeeded",
+        props: { provider: "apple", is_new_user: !result.profileStatus },
+      });
+
       router.push(nextAfterLogin(result.termsStatus, result.profileStatus));
     } catch (err) {
       if (cancelled.current) return;
+      capture({
+        name: "login_failed",
+        props: { provider: "apple", reason: "login_api" },
+      });
       setError(toUserMessage(err));
     }
   }

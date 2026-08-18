@@ -7,6 +7,7 @@ import useAuthStore from "@/store/useAuthStore";
 import LoginModal from "@/components/auth/LoginModal";
 import DeConfirmDialog from "@/components/TDS/DeConfirmDialog";
 import DeVoteGauge from "@/components/TDS/DeVoteGauge";
+import { capture } from "@/lib/analytics/client";
 
 interface ThreadVoteBarProps {
   threadId: number;
@@ -59,6 +60,10 @@ export default function ThreadVoteBar({
     setError(null);
     try {
       await voteRoom(threadId, choice, accessToken);
+      capture({
+        name: "vote_cast",
+        props: { thread_id: threadId, opinion: choice, changed: hasVoted },
+      });
       onVoted();
     } catch (err) {
       setError(err instanceof Error ? err.message : "투표에 실패했습니다.");

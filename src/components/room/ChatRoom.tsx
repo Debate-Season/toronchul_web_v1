@@ -13,6 +13,7 @@ import { getMyProfile } from "@/lib/api/profile";
 import { imageColorFromEngName } from "@/lib/profile/constants";
 import { imageUrl } from "@/lib/imageUrl";
 import LoginModal from "@/components/auth/LoginModal";
+import { capture } from "@/lib/analytics/client";
 
 // userCommunity 가 아이콘 경로인지(방어적) — 아니면 이름 텍스트로 취급.
 function isImagePath(s: string): boolean {
@@ -237,6 +238,8 @@ export default function ChatRoom({
         }),
       onError: (message) => {
         setSendError(message);
+        // 거절 사유 문구는 서버에서 바뀔 수 있어 싣지 않는다. 빈도만 본다.
+        capture({ name: "message_rejected", props: { thread_id: roomId } });
         // 거절된 본문을 입력창에 되돌린다. 그 사이에 새로 입력한 게 있으면
         // 그쪽이 우선 — 사용자가 방금 친 글자를 덮어쓰지 않는다.
         const failed = lastSentRef.current;
@@ -269,6 +272,15 @@ export default function ChatRoom({
     if (sent) {
       lastSentRef.current = content;
       setDraft("");
+      // 본문은 절대 싣지 않는다 — 길이만. 발언 내용은 정치적 견해에 해당한다.
+      capture({
+        name: "message_sent",
+        props: {
+          thread_id: roomId,
+          opinion: myOpinion,
+          length: content.length,
+        },
+      });
     }
   };
 

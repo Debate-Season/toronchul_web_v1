@@ -8,6 +8,7 @@ import { fetchIssueRoom, type IssueRoomResponse } from "@/lib/api/room";
 import { issueHref } from "@/lib/slug";
 import { RNB_SLOT_ID } from "@/lib/layoutSlots";
 import useAuthStore from "@/store/useAuthStore";
+import { capture } from "@/lib/analytics/client";
 import ThreadTabs from "@/components/room/ThreadTabs";
 import ThreadPanel from "@/components/room/ThreadPanel";
 import ChatRoom from "@/components/room/ChatRoom";
@@ -46,6 +47,15 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
   useEffect(() => {
     setRnbSlot(document.getElementById(RNB_SLOT_ID));
   }, []);
+
+  // 열린 주제를 기록한다. 탭 전환도 여기서 잡히므로 주제별 조회가 그대로 쌓인다.
+  useEffect(() => {
+    if (!issueId || !threadId) return;
+    capture({
+      name: "thread_opened",
+      props: { issue_id: issueId, thread_id: threadId },
+    });
+  }, [issueId, threadId]);
 
   const [data, setData] = useState<IssueRoomResponse | null>(null);
   const [loading, setLoading] = useState(true);

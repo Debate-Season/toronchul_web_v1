@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { X } from "lucide-react";
 import { redirectToKakao } from "@/lib/auth/kakao";
 import { redirectToApple } from "@/lib/auth/apple";
+import { capture } from "@/lib/analytics/client";
+import type { LoginProvider } from "@/lib/analytics/events";
 
 function KakaoIcon() {
   return (
@@ -36,6 +38,13 @@ function AppleIcon() {
 export default function LoginModal({ onClose }: { onClose: () => void }) {
   const handleBackdrop = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
+  };
+
+  // OAuth 로 떠나기 직전에 기록한다. 여기서부터 콜백까지가 지금 완전히
+  // 깜깜한 구간이라, 시작 건수가 있어야 성공률을 계산할 수 있다.
+  const startLogin = (provider: LoginProvider, redirect: () => void) => {
+    capture({ name: "login_started", props: { provider } });
+    redirect();
   };
 
   useEffect(() => {
@@ -77,7 +86,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
         <div className="flex flex-col gap-3">
           <button
             type="button"
-            onClick={redirectToKakao}
+            onClick={() => startLogin("kakao", redirectToKakao)}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-kakao py-3 text-body-16 font-medium text-black cursor-pointer transition-colors hover:brightness-95"
           >
             <KakaoIcon />
@@ -86,7 +95,7 @@ export default function LoginModal({ onClose }: { onClose: () => void }) {
 
           <button
             type="button"
-            onClick={redirectToApple}
+            onClick={() => startLogin("apple", redirectToApple)}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-3 text-body-16 font-medium text-white cursor-pointer transition-colors hover:brightness-150"
           >
             <AppleIcon />

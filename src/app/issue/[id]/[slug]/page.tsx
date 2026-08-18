@@ -12,6 +12,7 @@ import { fromBase36 } from "@/lib/slug";
 import { imageUrl } from "@/lib/imageUrl";
 import useAuthStore from "@/store/useAuthStore";
 import IssueThreadList from "@/components/room/IssueThreadList";
+import { capture } from "@/lib/analytics/client";
 
 // ── Skeleton ─────────────────────────────────────
 function SkeletonShell() {
@@ -39,6 +40,14 @@ function SkeletonShell() {
 export default function IssueDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { accessToken, _hasHydrated } = useAuthStore();
+
+  // 조회 성공 여부와 무관하게 "이 이슈를 열었다"는 사실을 기록한다.
+  // 로드 실패까지 포함해야 이탈 지점이 보인다.
+  useEffect(() => {
+    const issueId = fromBase36(id);
+    if (!issueId) return;
+    capture({ name: "issue_viewed", props: { issue_id: issueId } });
+  }, [id]);
 
   const [data, setData] = useState<IssueDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
