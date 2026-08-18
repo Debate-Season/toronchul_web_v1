@@ -130,26 +130,35 @@
   --text-caption-12-tight--letter-spacing: -0.3px;
 }
 
-/* ── 회색 스크롤바 ───────────────────────────────────────── */
-.scrollbar-grey {
+/* ── 스크롤바 ─────────────────────────────────────────────── */
+/* 앱 전역 기본값. 브라우저 기본 스크롤바는 어두운 배경 위에서 밝고 두꺼운
+   막대로 떠 보여 내용보다 먼저 눈에 들어온다. 트랙을 지우고 얇은 회색 썸만
+   남긴다.
+   유틸 클래스가 아니라 기본값인 이유 — 스크롤 영역이 생길 때마다 클래스를
+   붙이는 걸 잊는다. 실제로 채팅·사이드바·모달이 전부 빠져 있었다.
+   폭 주의: Chrome 121+ 는 `scrollbar-width` 가 지정되면 `::-webkit-scrollbar`
+   를 무시한다. 실제 폭은 브라우저의 thin 값이고 아래 webkit 규칙은 Safari
+   폴백이다. */
+* {
   scrollbar-width: thin;
   scrollbar-color: var(--color-grey-70) transparent;
 }
-.scrollbar-grey::-webkit-scrollbar {
+*::-webkit-scrollbar {
+  width: 6px;
   height: 6px;
 }
-.scrollbar-grey::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
   background: transparent;
 }
-.scrollbar-grey::-webkit-scrollbar-thumb {
+*::-webkit-scrollbar-thumb {
   background: var(--color-grey-70);
   border-radius: 3px;
 }
 
 /* ── 스크롤바 숨김 ───────────────────────────────────────── */
 /* 잘린 내용 자체가 스크롤 힌트인 곳(토론 주제 탭 스트립)에 쓴다. 스크롤은
-   그대로 동작하고 막대만 숨긴다. 세로 스크롤 영역에는 쓰지 말 것 — 목록의
-   현재 위치를 알 방법이 없어진다. */
+   그대로 동작하고 막대만 숨긴다. 클래스 선택자라 위의 전역 기본값을 이긴다.
+   세로 스크롤 영역에는 쓰지 말 것 — 목록의 현재 위치를 알 방법이 없어진다. */
 .scrollbar-none {
   scrollbar-width: none;
   -ms-overflow-style: none;

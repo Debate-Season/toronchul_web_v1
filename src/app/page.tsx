@@ -158,7 +158,7 @@ function HorizontalCarousel({
 
       <div
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto pb-2 scrollbar-grey scroll-smooth"
+        className="flex gap-3 overflow-x-auto pb-2 scroll-smooth"
       >
         {items}
       </div>
@@ -269,7 +269,7 @@ function MediaSection({
       </div>
 
       {categories.length > 0 && (
-        <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-grey">
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
           <button
             type="button"
             onClick={() => onCategoryChange(null)}

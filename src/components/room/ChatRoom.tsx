@@ -373,7 +373,15 @@ export default function ChatRoom({
         </div>
       )}
 
-      {/* 메시지 목록 (유일한 스크롤 영역, 과거 → 최신 순) */}
+      {/*
+        메시지 목록 (유일한 스크롤 영역, 과거 → 최신 순)
+
+        세로 위치가 곧 "어디까지 읽었나" 이므로 탭 스트립처럼 막대를 숨기지
+        않는다 — 전역 기본값(얇은 회색)을 그대로 쓴다. `pr-1` 은 오버레이
+        스크롤바가 우측 정렬 말풍선 위에 겹치지 않게 두는 여백이고,
+        `overscroll-contain` 은 목록 끝에서 스크롤이 페이지로 넘어가
+        입력창까지 밀려 올라가는 것을 막는다.
+      */}
       <div
         ref={scrollRef}
         onScroll={(e) => {
@@ -382,7 +390,7 @@ export default function ChatRoom({
           atBottomRef.current =
             el.scrollHeight - el.scrollTop - el.clientHeight < 24;
         }}
-        className="flex flex-1 flex-col gap-3 overflow-y-auto py-3"
+        className="flex flex-1 flex-col gap-3 overflow-y-auto overscroll-contain py-3 pr-1"
       >
         {/* 상단 감지점 — 화면에 들어오면 이전 대화 자동 로드 */}
         <div ref={topSentinelRef} className="h-px flex-shrink-0" />
