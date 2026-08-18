@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -49,8 +49,16 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
   }, []);
 
   // 열린 주제를 기록한다. 탭 전환도 여기서 잡히므로 주제별 조회가 그대로 쌓인다.
+  //
+  // 같은 주제로는 한 번만 보낸다. StrictMode 는 개발에서 이펙트를 두 번
+  // 실행하고, 그 밖에도 재마운트·리렌더로 같은 값이 다시 들어올 수 있다.
+  // 분석 이벤트는 중복이 곧 집계 오류라, 원인을 가리지 않고 값 기준으로 막는다.
+  const lastOpenedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!issueId || !threadId) return;
+    const key = `${issueId}:${threadId}`;
+    if (lastOpenedRef.current === key) return;
+    lastOpenedRef.current = key;
     capture({
       name: "thread_opened",
       props: { issue_id: issueId, thread_id: threadId },

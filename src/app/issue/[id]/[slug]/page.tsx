@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { MessageSquare, ArrowLeft } from "lucide-react";
@@ -43,9 +43,12 @@ export default function IssueDetailPage() {
 
   // 조회 성공 여부와 무관하게 "이 이슈를 열었다"는 사실을 기록한다.
   // 로드 실패까지 포함해야 이탈 지점이 보인다.
+  // 같은 이슈로는 한 번만 — 중복 이유는 `DebateRoom` 의 같은 가드 참고.
+  const lastViewedRef = useRef<string | null>(null);
   useEffect(() => {
     const issueId = fromBase36(id);
-    if (!issueId) return;
+    if (!issueId || lastViewedRef.current === id) return;
+    lastViewedRef.current = id;
     capture({ name: "issue_viewed", props: { issue_id: issueId } });
   }, [id]);
 
