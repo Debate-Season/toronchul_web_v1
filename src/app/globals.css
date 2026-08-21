@@ -41,13 +41,19 @@
   --color-red-light: #FFB9BB;
   --color-red-dark-on-grey: #4C3942;
   --color-red-dark: #382125;
-  --color-red-mine: #654654;
+  /* 내 말풍선. 메인(--color-red)의 색상(H 358°)을 유지한 채 채도는 높게, 명도만
+     낮췄다(S 70% / L 30%). 앱에서 포팅해 온 값(#654654)은 채도를 떨어뜨린
+     탁한 자주색이라 "빨강 계열" 로 읽히지 않았다. 앱과 값이 갈라진 상태다. */
+  --color-red-mine: #82171B;
 
   /* Blue (반대/Con) */
   --color-blue: #5A61FF;
   --color-blue-dark-on-grey: #3C3A51;
   --color-blue-dark: #242345;
-  --color-blue-mine: #4F4C71;
+  /* 위와 같은 규칙. 메인(--color-blue) 색상 H 237.5° 유지, S 70% / L 34%.
+     파랑은 같은 명도에서 더 어둡게 보여 L 을 빨강보다 조금 높게 잡았다.
+     앱 포팅값은 #4F4C71 이었다. */
+  --color-blue-mine: #1A1F93;
 
   /* Image Accent Colors */
   --color-image-red: #FE2222;
