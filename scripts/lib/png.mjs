@@ -241,3 +241,41 @@ export function contentBounds(img, threshold = 24) {
   }
   return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1, bg };
 }
+
+/**
+ * 단색 배경을 키잉해 투명하게 만든다.
+ * 경계 픽셀은 배경과 섞여 있으므로 언프리멀티플로 원래 색을 복원한다
+ * (안 하면 가장자리에 배경색 테두리가 남는다).
+ */
+export function keyOutBackground(img, bg, lo = 12, hi = 64) {
+  const out = canvas(img.width, img.height);
+  for (let i = 0; i < img.width * img.height; i++) {
+    const s = i * 4;
+    const dr = img.data[s] - bg[0], dg = img.data[s+1] - bg[1], db = img.data[s+2] - bg[2];
+    const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+    const a = Math.min(1, Math.max(0, (dist - lo) / (hi - lo)));
+    if (a <= 0) continue;
+    for (let c = 0; c < 3; c++) {
+      const v = (img.data[s + c] - bg[c] * (1 - a)) / a;
+      out.data[s + c] = Math.min(255, Math.max(0, Math.round(v)));
+    }
+    out.data[s + 3] = Math.round(a * 255);
+  }
+  return out;
+}
+
+/** 알파가 0 이 아닌 픽셀들의 바운딩 박스. */
+export function alphaBounds(img) {
+  let minX = img.width, minY = img.height, maxX = -1, maxY = -1;
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      if (img.data[(y * img.width + x) * 4 + 3] > 8) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 };
+}
