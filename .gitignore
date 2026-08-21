@@ -47,3 +47,6 @@ next-env.d.ts
 
 # tooling
 .solosquad/
+
+# claude code — 세션이 만드는 임시 worktree 체크아웃 (자체 node_modules 포함)
+.claude/worktrees/

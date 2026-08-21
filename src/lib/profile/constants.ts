@@ -28,6 +28,33 @@ export function imageColorFromEngName(engName: string): ImageColor {
   return IMAGE_COLORS.find((c) => c.engName === upper) ?? IMAGE_COLORS[0];
 }
 
+/**
+ * 색을 모를 때 쓰는 대체 색. **선택지가 아니므로 `IMAGE_COLORS` 에 넣지 않는다.**
+ *
+ * `imageColorFromEngName` 의 폴백은 RED 인데(모바일 `fromEngName` 미러) RED 는
+ * 실제로 고를 수 있는 색이라, "빨강을 고른 사람"과 "색 정보가 없는 사람"이
+ * 화면에서 구분되지 않는다. 서버가 `profileColor` 를 비워 내려주는 과거 채팅이
+ * 전부 빨강 아바타로 보이던 원인이 이것이다.
+ */
+export const UNKNOWN_IMAGE_COLOR: ImageColor = {
+  engName: "",
+  name: "미지정",
+  bgClass: "bg-brand-dark",
+};
+
+/**
+ * 표시 전용 색 조회 — 값이 없거나 모르는 값이면 RED 가 아니라
+ * `UNKNOWN_IMAGE_COLOR` 를 준다. 색을 **고르는** 화면은 여전히
+ * `imageColorFromEngName` 을 쓴다(선택지 밖의 색이 선택된 것처럼 보이면 안 되므로).
+ */
+export function imageColorForDisplay(
+  engName: string | null | undefined,
+): ImageColor {
+  const upper = (engName ?? "").trim().toUpperCase();
+  if (!upper) return UNKNOWN_IMAGE_COLOR;
+  return IMAGE_COLORS.find((c) => c.engName === upper) ?? UNKNOWN_IMAGE_COLOR;
+}
+
 // ── 소셜 로그인 종류 ──────────────────────────────────────
 // socialType(GET /profiles/me 의 값, "kakao"/"apple")의 표시명.
 export function socialTypeLabel(socialType: string | null | undefined): string {

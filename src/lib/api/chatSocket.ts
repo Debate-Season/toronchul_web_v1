@@ -1,5 +1,6 @@
 import { Client, type IMessage, type StompSubscription } from "@stomp/stompjs";
 import type { ChatMessage } from "@/lib/api/chat";
+import type { VoteOpinion } from "@/lib/api/room";
 
 // ── 실측 확인 사항 (프로브: wss 핸드셰이크 + CONNECT 프레임) ──
 // - 엔드포인트는 raw WebSocket. SockJS 폴백 불필요 (101 업그레이드 확인).
@@ -37,8 +38,14 @@ const ERROR_QUEUE = "/user/queue/errors";
 /** 발행 payload — 2026-07-18 백엔드 회신으로 확정된 스펙 */
 export interface ChatPublishInput {
   content: string;
-  /** 이 방에서의 내 투표(RoomDetailResponse.opinion) */
-  opinionType: string;
+  /**
+   * 이 스레드에서의 내 입장. **`AGREE` | `DISAGREE` 만 가능하다.**
+   *
+   * 입장을 고르지 않으면 채팅을 보낼 수 없는 것이 정책인데, 서버는 이 값을
+   * 검증하지 않고 그대로 저장한다. 그래서 타입에서 `NEUTRAL`(미투표)을 아예
+   * 없애 미투표 상태로 발행되는 경로를 막는다.
+   */
+  opinionType: VoteOpinion;
   /** 내 소속 커뮤니티 이름(MyProfile.community.name, 예 "에펨코리아") */
   userCommunity: string;
 }

@@ -10,7 +10,8 @@ import {
   type ChatSocketStatus,
 } from "@/lib/api/chatSocket";
 import { getMyProfile } from "@/lib/api/profile";
-import { imageColorFromEngName } from "@/lib/profile/constants";
+import type { ThreadOpinion } from "@/lib/api/room";
+import { imageColorForDisplay } from "@/lib/profile/constants";
 import { imageUrl } from "@/lib/imageUrl";
 import LoginModal from "@/components/auth/LoginModal";
 import { capture } from "@/lib/analytics/client";
@@ -120,10 +121,14 @@ interface ChatRoomProps {
   /** 조회 필터. 컨테이너 방으로 조회할 때만 지정한다. */
   threadId?: number | null;
   /**
-   * 발행 payload 의 `opinionType` — 선택된 스레드에서의 내 투표.
-   * 서버가 판정하지 않고 클라이언트 값을 그대로 저장하므로 반드시 실어보낸다.
+   * 선택된 스레드에서의 내 입장. `NEUTRAL` 은 **미투표**다.
+   *
+   * 두 가지 역할을 한다.
+   * 1. 전송 가능 여부 — 입장을 고르지 않으면 채팅을 보낼 수 없는 것이 정책이다.
+   * 2. 발행 payload 의 `opinionType` — 서버가 판정하지 않고 클라이언트 값을
+   *    그대로 저장하므로 반드시 실어보낸다.
    */
-  myOpinion: string;
+  myOpinion: ThreadOpinion;
 }
 
 /**
@@ -255,18 +260,28 @@ export default function ChatRoom({
     };
   }, [_hasHydrated, isLogin, accessToken, roomId]);
 
-  // payload 에 필요한 값이 모두 있을 때만 전송 가능.
-  const canSend = socketStatus === "connected" && myCommunity !== null;
+  /**
+   * 확정된 내 입장. 미투표(`NEUTRAL`)면 null 이고, 그러면 전송 자체를 막는다.
+   *
+   * 입장 선택이 발언 조건인데 클라이언트가 이걸 확인하지 않아서, 미투표 상태로
+   * 보낸 메시지가 `opinionType: "NEUTRAL"` 로 저장되고 있었다. 서버가 이 값을
+   * 검증하지 않으므로 막을 곳이 여기뿐이다(서버 검증은 백엔드에 별도 요청).
+   */
+  const stance = myOpinion === "AGREE" || myOpinion === "DISAGREE" ? myOpinion : null;
+
+  // payload 에 필요한 값이 모두 있고, 입장을 골랐을 때만 전송 가능.
+  const canSend =
+    socketStatus === "connected" && myCommunity !== null && stance !== null;
 
   const send = () => {
     const content = draft.trim();
     // 서버 제약: 1자 이상 500자 이하 (Swagger ChatMessageResponse.content)
     if (!content || content.length > 500) return;
-    if (myCommunity === null) return;
+    if (myCommunity === null || stance === null) return;
     setSendError(null);
     const sent = socketRef.current?.publish({
       content,
-      opinionType: myOpinion,
+      opinionType: stance,
       userCommunity: myCommunity,
     });
     if (sent) {
@@ -277,7 +292,7 @@ export default function ChatRoom({
         name: "message_sent",
         props: {
           thread_id: roomId,
-          opinion: myOpinion,
+          opinion: stance,
           length: content.length,
         },
       });
@@ -459,7 +474,14 @@ export default function ChatRoom({
           </div>
         )}
 
-        {socketStatus === "unauthorized" ? (
+        {/* 입장 미선택 — 발언 조건을 못 채운 상태. 연결 상태 안내보다 우선한다
+            (연결이 붙어도 보낼 수 없는 게 이 경우라서). 투표 UI 는 데스크톱에서는
+            우측 사이드바, 모바일에서는 대화 바로 위에 있다. */}
+        {stance === null ? (
+          <p className="pt-2 pb-2 text-center text-caption-12 text-text-secondary">
+            찬성 또는 반대를 선택해야 대화에 참여할 수 있어요.
+          </p>
+        ) : socketStatus === "unauthorized" ? (
           <p className="pt-2 pb-3 text-center text-caption-12 text-text-secondary">
             세션이 만료되어 채팅에 연결할 수 없어요. 다시 로그인해 주세요.
           </p>
@@ -488,11 +510,13 @@ export default function ChatRoom({
             maxLength={500}
             disabled={!canSend}
             placeholder={
-              socketStatus !== "connected"
-                ? "연결을 기다리는 중이에요"
-                : canSend
-                  ? "메시지를 입력하세요"
-                  : "프로필 정보를 불러오는 중이에요"
+              stance === null
+                ? "입장을 선택하면 대화할 수 있어요"
+                : socketStatus !== "connected"
+                  ? "연결을 기다리는 중이에요"
+                  : canSend
+                    ? "메시지를 입력하세요"
+                    : "프로필 정보를 불러오는 중이에요"
             }
             className="flex-1 bg-transparent text-body-14 text-text-primary outline-none placeholder:text-text-secondary disabled:text-text-secondary"
           />
@@ -525,7 +549,9 @@ function DayDivider({ label }: { label: string }) {
 
 // ── 일반 메시지 ───────────────────────────────────
 function MessageRow({ msg }: { msg: ChatMessage }) {
-  const color = imageColorFromEngName(msg.profileColor ?? "");
+  // 색이 없는 메시지(서버가 `profileColor` 를 안 채운 과거 레코드)를 RED 로
+  // 폴백하면 "빨강을 고른 사람" 과 구분되지 않는다 — 전용 대체 색을 쓴다.
+  const color = imageColorForDisplay(msg.profileColor);
   // 소켓 echo 프레임은 sender 가 비어 오는 경우가 있다.
   const sender = msg.sender?.trim() ? msg.sender : "알 수 없음";
   // 반대 입장은 우측 정렬. 찬성/중립/미상은 좌측(기본).
