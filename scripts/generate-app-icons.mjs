@@ -2,40 +2,48 @@
 //
 //   node scripts/generate-app-icons.mjs
 //
-// 원본 앱 아이콘은 말풍선이 캔버스의 59% 폭만 차지한다. 그대로 16px 로 줄이면
-// 글리프가 9px 밖에 안 돼서 탭에서 알아볼 수가 없다. 여백을 잘라내고 CONTENT_FILL
-// 만큼 키운 뒤 라운드 코너를 씌운다.
+// 탭에 그려지는 파비콘의 물리적 크기는 브라우저가 고정한다(16 CSS px, HiDPI 32px).
+// 우리가 조절할 수 있는 건 그 고정된 타일 안에서 마크가 차지하는 비율뿐이다.
+// 그래서 원본 앱 아이콘의 검정 배경판을 키잉으로 걷어내고 말풍선만 남긴다.
+// 배경판을 두면 그만큼 마크가 작아지고, 다크 테마 탭에서는 그 판이 배경에
+// 묻혀 마크가 더 작아 보인다.
+//
+// apple-icon 은 예외다. iOS 는 투명 픽셀을 검정으로 합성하고 자체 마스크를
+// 씌우므로 불투명 정사각 타일이어야 한다.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  decodePNG, encodePNG, canvas, crop, resize, blend, roundCorners, contentBounds,
+  decodePNG, encodePNG, canvas, crop, resize, blend,
+  contentBounds, keyOutBackground, alphaBounds,
 } from "./lib/png.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.join(ROOT, "public/icons/favicon.png");
 
 const MASTER = 512;
-const CONTENT_FILL = 0.78;   // 말풍선이 차지할 캔버스 비율 (원본 0.59)
-const RADIUS_RATIO = 0.22;   // iOS 스퀘어클과 비슷한 정도
-const ICO_SIZES = [16, 32, 48, 64, 128, 256];
+const GLYPH_FILL = 0.96;   // 투명 파비콘: 마크가 타일을 거의 꽉 채운다
+const APPLE_FILL = 0.72;   // iOS 앱 아이콘 관례상 여백을 남긴다
 const APPLE_SIZE = 180;
+const ICO_SIZES = [16, 32, 48, 64, 128, 256];
 
 const src = decodePNG(fs.readFileSync(SRC));
-const box = contentBounds(src);
+const bg = contentBounds(src).bg;
+const keyed = keyOutBackground(src, bg);
+const box = alphaBounds(keyed);
 console.log(
-  `source ${src.width}x${src.height}, content ${box.width}x${box.height} ` +
-  `(${((box.width / src.width) * 100).toFixed(1)}% width)`
+  `source ${src.width}x${src.height}, bg rgb(${bg.join(",")}), ` +
+  `glyph ${box.width}x${box.height} (${((box.width / src.width) * 100).toFixed(1)}% width)`
 );
 
-/** 여백을 잘라 CONTENT_FILL 만큼 키운 정사각 캔버스. */
-function buildMaster() {
-  const glyph = crop(src, box.x, box.y, box.width, box.height);
-  const target = MASTER * CONTENT_FILL;
-  const scale = target / Math.max(box.width, box.height);
+const glyph = crop(keyed, box.x, box.y, box.width, box.height);
+
+/** 글리프를 fill 비율로 키워 정사각 캔버스 중앙에 놓는다. */
+function compose(fill, background) {
+  const scale = (MASTER * fill) / Math.max(box.width, box.height);
   const gw = Math.round(box.width * scale);
   const gh = Math.round(box.height * scale);
-  const out = canvas(MASTER, MASTER, [...box.bg, 255]);
+  const out = canvas(MASTER, MASTER, background);
   blend(out, resize(glyph, gw, gh), Math.round((MASTER - gw) / 2), Math.round((MASTER - gh) / 2));
   return out;
 }
@@ -47,27 +55,19 @@ function downscale(img, size) {
   return cur.width === size ? cur : resize(cur, size, size);
 }
 
-function clone(img) {
-  return { width: img.width, height: img.height, data: Buffer.from(img.data) };
-}
-
-// ── icon.png / favicon.ico: 라운드 코너 ─────────────────────
-const rounded = roundCorners(buildMaster(), MASTER * RADIUS_RATIO);
+// ── icon.png: 투명 배경, 마크 최대 ──────────────────────────
+const mark = compose(GLYPH_FILL, [0, 0, 0, 0]);
 const iconPath = path.join(ROOT, "src/app/icon.png");
-fs.writeFileSync(iconPath, encodePNG(rounded));
-console.log(`wrote ${path.relative(ROOT, iconPath)} ${MASTER}x${MASTER}`);
+fs.writeFileSync(iconPath, encodePNG(mark));
+console.log(`wrote ${path.relative(ROOT, iconPath)} ${MASTER}x${MASTER} (transparent)`);
 
-// ── apple-icon.png: 정사각 풀블리드 ─────────────────────────
-// iOS 가 자체 마스크를 씌우므로 우리가 라운드를 넣으면 모서리가 이중으로 깎인다.
+// ── apple-icon.png: 불투명 정사각 타일 ──────────────────────
 const applePath = path.join(ROOT, "src/app/apple-icon.png");
-fs.writeFileSync(applePath, encodePNG(downscale(buildMaster(), APPLE_SIZE), { alpha: false }));
-console.log(`wrote ${path.relative(ROOT, applePath)} ${APPLE_SIZE}x${APPLE_SIZE}`);
+fs.writeFileSync(applePath, encodePNG(downscale(compose(APPLE_FILL, [...bg, 255]), APPLE_SIZE), { alpha: false }));
+console.log(`wrote ${path.relative(ROOT, applePath)} ${APPLE_SIZE}x${APPLE_SIZE} (opaque)`);
 
 // ── favicon.ico: PNG 를 그대로 품는 다해상도 ICO ────────────
-const images = ICO_SIZES.map((size) => ({
-  size,
-  data: encodePNG(downscale(clone(rounded), size)),
-}));
+const images = ICO_SIZES.map((size) => ({ size, data: encodePNG(downscale(mark, size)) }));
 
 const header = Buffer.alloc(6);
 header.writeUInt16LE(0, 0); // reserved
