@@ -23,6 +23,15 @@ export interface ChatMessage {
   roomId: number;
   /** 스레드(토론 주제) id. Swagger: "웹이 탭 필터에 사용. 미분류 메시지는 null". */
   threadId: number | null;
+  /**
+   * 작성자 user_id. JWT 의 `sub` 와 비교해 "내 메시지"를 판별한다
+   * (`userIdFromToken`). `sub` 는 문자열, 이 값은 숫자라 변환이 필요하다.
+   *
+   * **WebSocket 인증 게이트 이전 메시지는 null 이다**(운영 기준 381건).
+   * 판별할 방법이 없으므로 남의 메시지로 취급한다 — null 을 내 것으로 다루면
+   * 과거 대화 전체가 내 메시지로 칠해진다.
+   */
+  userId: number | null;
   messageType: ChatMessageType;
   content: string;
   sender: string | null;

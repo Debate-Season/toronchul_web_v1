@@ -41,9 +41,14 @@ export interface ChatPublishInput {
   /**
    * 이 스레드에서의 내 입장. **`AGREE` | `DISAGREE` 만 가능하다.**
    *
-   * 입장을 고르지 않으면 채팅을 보낼 수 없는 것이 정책인데, 서버는 이 값을
-   * 검증하지 않고 그대로 저장한다. 그래서 타입에서 `NEUTRAL`(미투표)을 아예
-   * 없애 미투표 상태로 발행되는 경로를 막는다.
+   * **서버가 무시한다** — 2026-08-22 백엔드 변경(PR #200)으로 서버가 투표
+   * 기록에서 직접 채운다. 투표가 없으면 저장 대신 거절되고
+   * `/user/queue/errors` 로 사유가 온다. 그래도 계속 실어보내는 이유는 운영
+   * 중인 모바일 앱이 같은 payload 를 쓰고 있어 형태를 유지하는 편이 안전해서다.
+   *
+   * 타입에서 `NEUTRAL`(미투표)을 없앤 것도 그대로 둔다. 화면에서 입장 미선택
+   * 상태의 전송을 막는 것과 짝이 맞고(서버 거절을 배너로 알리는 것보다 애초에
+   * 못 보내게 하는 편이 낫다), 실수로 미투표 값을 싣는 코드가 컴파일되지 않는다.
    */
   opinionType: VoteOpinion;
   /** 내 소속 커뮤니티 이름(MyProfile.community.name, 예 "에펨코리아") */
@@ -222,7 +227,8 @@ export function createChatSocket({
  * 저장해 남의 닉네임으로 사칭이 가능했고(그 구멍이 `sender: null` 로 드러난 것이
  * 이번 건), 지금은 서버가 JWT → 프로필 닉네임으로 채운다. 보내도 무시·덮어쓰기.
  *
- * `opinionType`/`userCommunity` 는 아직 클라이언트 값을 사용한다.
+ * `opinionType` 도 지금은 서버가 채운다(투표 기록 조회). 요청에 실어도 무시되며,
+ * 투표가 없으면 저장되지 않고 거절된다. `userCommunity` 만 클라이언트 값이다.
  */
 function buildPayload(roomId: number, input: ChatPublishInput): string {
   return JSON.stringify({

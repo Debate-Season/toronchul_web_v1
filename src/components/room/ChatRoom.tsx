@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { SendHorizontal, X } from "lucide-react";
 import useAuthStore from "@/store/useAuthStore";
 import { fetchMessages, type ChatMessage } from "@/lib/api/chat";
@@ -10,6 +10,7 @@ import {
   type ChatSocketStatus,
 } from "@/lib/api/chatSocket";
 import { getMyProfile } from "@/lib/api/profile";
+import { userIdFromToken } from "@/lib/auth/jwt";
 import type { ThreadOpinion } from "@/lib/api/room";
 import { imageColorForDisplay } from "@/lib/profile/constants";
 import { imageUrl } from "@/lib/imageUrl";
@@ -145,6 +146,12 @@ export default function ChatRoom({
   myOpinion,
 }: ChatRoomProps) {
   const { accessToken, isLogin, _hasHydrated } = useAuthStore();
+
+  /**
+   * 내 user_id — 말풍선에서 내 발언을 구분하는 데만 쓴다.
+   * `GET /profiles/me` 에 id 가 없어서 토큰에서 꺼낸다.
+   */
+  const myUserId = useMemo(() => userIdFromToken(accessToken), [accessToken]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -447,7 +454,11 @@ export default function ChatRoom({
             <Fragment key={key}>
               {divider && <DayDivider label={divider} />}
               {msg.messageType === "CHAT" ? (
-                <MessageRow msg={msg} />
+                // userId 가 null 인 레거시 메시지는 판별 불가 → 남의 것으로 둔다.
+                <MessageRow
+                  msg={msg}
+                  isMine={myUserId !== null && msg.userId === myUserId}
+                />
               ) : (
                 <SystemRow msg={msg} />
               )}
@@ -548,7 +559,7 @@ function DayDivider({ label }: { label: string }) {
 }
 
 // ── 일반 메시지 ───────────────────────────────────
-function MessageRow({ msg }: { msg: ChatMessage }) {
+function MessageRow({ msg, isMine }: { msg: ChatMessage; isMine: boolean }) {
   // 색이 없는 메시지(서버가 `profileColor` 를 안 채운 과거 레코드)를 RED 로
   // 폴백하면 "빨강을 고른 사람" 과 구분되지 않는다 — 전용 대체 색을 쓴다.
   const color = imageColorForDisplay(msg.profileColor);
@@ -558,11 +569,19 @@ function MessageRow({ msg }: { msg: ChatMessage }) {
   const isDisagree = msg.opinionType === "DISAGREE";
   // 위치만으로는 한쪽 입장만 연속으로 보일 때 구분이 안 되므로 말풍선을 틴트한다.
   // *-dark 는 *-dark-on-grey 보다 어두운 단계라 본문(#EBE7ED) 대비가 더 확보된다.
+  //
+  // 좌우 정렬은 **입장**을 나타내므로(반대=우측) 작성자 구분에 쓸 수 없다.
+  // 그래서 내 발언은 같은 계열의 한 단계 밝은 색(*-mine)으로 구분한다 —
+  // 앱(de_colors.dart)이 쓰는 방식과 같다.
   const bubbleBg =
     msg.opinionType === "AGREE"
-      ? "bg-red-dark"
+      ? isMine
+        ? "bg-red-mine"
+        : "bg-red-dark"
       : isDisagree
-        ? "bg-blue-dark"
+        ? isMine
+          ? "bg-blue-mine"
+          : "bg-blue-dark"
         : "bg-surface-elevated";
 
   return (
