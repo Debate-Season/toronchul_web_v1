@@ -21,14 +21,33 @@ import { fetchRoomDetail } from "@/lib/api/room";
 import useAuthStore from "@/store/useAuthStore";
 import { Radio, Newspaper, Lightbulb, MessagesSquare, ChevronLeft, ChevronRight } from "lucide-react";
 
-// 배열에서 랜덤 n개 추출 (원본 불변, Fisher–Yates 부분 셔플).
-function pickRandom<T>(arr: readonly T[], n: number): T[] {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
+/**
+ * 추천 토론 n개를 뽑는다 — **한 이슈당 최대 1개**.
+ *
+ * 원본(`top5BestChatRooms`)은 이슈 단위가 아니라 토론 단위 랭킹이라 같은 이슈의
+ * 토론이 여러 개 들어온다(예: "윤석열 정부 비상계엄"의 계엄/탄핵 두 방). 그대로
+ * 3개를 뽑으면 추천 목록이 한 이슈로 쏠린다.
+ *
+ * 셔플 후 이슈가 처음 나온 것만 담는다. 서로 다른 이슈가 n개보다 적으면 **모자란
+ * 채로 반환한다** — 중복을 채워 넣지 않는다.
+ */
+function pickDistinctIssues(rooms: readonly BestChatRoom[], n: number): BestChatRoom[] {
+  // Fisher–Yates 부분 셔플 (원본 불변).
+  const shuffled = [...rooms];
+  for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  return copy.slice(0, n);
+
+  const seenIssues = new Set<number>();
+  const picked: BestChatRoom[] = [];
+  for (const room of shuffled) {
+    if (picked.length >= n) break;
+    if (seenIssues.has(room.issueId)) continue;
+    seenIssues.add(room.issueId);
+    picked.push(room);
+  }
+  return picked;
 }
 
 // ── Skeleton ─────────────────────────────────────
@@ -379,9 +398,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
-  // "이런 토론은 어때요?" — bestChatRooms 중 랜덤 3개(데이터 로드마다 재추첨).
+  // "이런 토론은 어때요?" — bestChatRooms 중 이슈가 겹치지 않는 랜덤 3개
+  // (데이터 로드마다 재추첨).
   const recommendedDebates = useMemo(
-    () => pickRandom(bestChatRooms, 3),
+    () => pickDistinctIssues(bestChatRooms, 3),
     [bestChatRooms],
   );
 
