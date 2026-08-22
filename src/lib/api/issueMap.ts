@@ -7,7 +7,12 @@ export interface IssueMapItem {
   title: string;
   createdAt: string;
   countChatRoom: number;
-  bookMarks: number;
+  /**
+   * 북마크 기능이 아직 없어서 `/api/v1/users/home` 은 이 값을 **채우지 않는다**
+   * (실측 17건 전부 null). 화면에 그리면 빈 자리가 되므로 쓰지 말 것.
+   * 기능이 생겨 서버가 숫자를 내려주기 시작하면 그때 `number` 로 좁힌다.
+   */
+  bookMarks: number | null;
 }
 
 // ── 이슈맵 목록 ─────────────────────────────────────

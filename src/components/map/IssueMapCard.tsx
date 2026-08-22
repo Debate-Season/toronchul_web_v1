@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Bookmark } from "lucide-react";
 import type { IssueMapItem } from "@/lib/api/issueMap";
 import { issueHref } from "@/lib/slug";
 
@@ -13,14 +12,10 @@ export default function IssueMapCard({ data }: { data: IssueMapItem }) {
           {data.title}
         </h3>
 
-        {/* 토론 수 + 북마크 */}
-        <div className="flex items-center justify-between mt-2">
+        {/* 토론 수 */}
+        <div className="flex items-center mt-2">
           <span className="text-caption-12 text-text-secondary">
             토론 {data.countChatRoom}개
-          </span>
-          <span className="flex items-center gap-1 text-caption-12 text-text-secondary">
-            <Bookmark size={12} />
-            {data.bookMarks}
           </span>
         </div>
       </article>
