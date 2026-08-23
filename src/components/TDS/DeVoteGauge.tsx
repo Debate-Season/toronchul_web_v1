@@ -34,10 +34,6 @@ const LOSE_TEXT: Record<DeVoteGaugeSize, string> = {
   lg: "text-body-16",
 };
 
-// 극단값(98:2)에서도 열세측 세그먼트가 사라지지 않도록 하는 최소 렌더 폭(%).
-// 표시되는 숫자는 항상 실제값이고, 이 클램프는 바 폭에만 적용된다.
-const MIN_SEGMENT = 4;
-
 /**
  * 찬반 게이지. 찬성은 항상 좌측·적색, 반대는 항상 우측·청색.
  * 우세측 수치만 크게, 열세측은 같은 색을 유지하되 작고 흐리게 후퇴시켜 위계를 만든다.
@@ -52,9 +48,13 @@ export default function DeVoteGauge({
   const ratio = getVoteRatio(agree, disagree);
   const open = revealed && ratio !== null;
 
-  const agreeWidth = ratio
-    ? Math.min(100 - MIN_SEGMENT, Math.max(MIN_SEGMENT, ratio.agreePercent))
-    : 0;
+  // 바 폭은 실제 비율 그대로다. 예전엔 열세측이 사라지지 않도록 최소 4% 를
+  // 보장했는데, 그러면 0% 인 쪽에도 색이 남아 "표가 있다"고 잘못 읽혔다.
+  // 0% 는 0% 로 보여야 한다.
+  const agreeWidth = ratio ? ratio.agreePercent : 0;
+
+  // 한쪽이 0% 면 분기점이 트랙 끝이라 노치가 가장자리에 붙어 잘린 선처럼 보인다.
+  const hasBothSides = open && ratio.agreePercent > 0 && ratio.disagreePercent > 0;
 
   const track = (
     <div
@@ -77,7 +77,7 @@ export default function DeVoteGauge({
             style={{ width: `${100 - agreeWidth}%` }}
           />
           {/* 분기점 노치. sm 은 트랙이 얇아 노이즈가 되므로 제외 */}
-          {size !== "sm" && (
+          {size !== "sm" && hasBothSides && (
             <div
               className={`absolute inset-y-0 w-0.5 transition-[left] duration-500 ease-out motion-reduce:transition-none ${
                 ratio.agreePercent === ratio.disagreePercent
