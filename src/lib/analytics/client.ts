@@ -119,9 +119,44 @@ function beforeSend(result: CaptureResult | null): CaptureResult | null {
 
 let initialized = false;
 
-/** 키가 주입됐는지. 로컬·프리뷰에서 키 없이 돌리면 전부 no-op 이 된다. */
+/**
+ * 개발 기기에서 띄운 앱인지.
+ *
+ * **왜 NODE_ENV 가 아니라 호스트네임인가** — `npm run build && npm start` 로
+ * 로컬에서 프로덕션 번들을 확인할 때 `NODE_ENV` 는 `production` 이다. 그때도
+ * 측정에서 빠져야 한다. 반대로 Vercel 프리뷰 배포는 실제 도메인이라 그대로
+ * 측정된다(프리뷰에서 이벤트를 검증할 수 있어야 한다).
+ *
+ * 사설 IP 대역까지 막는 이유는 휴대폰에서 같은 와이파이의 `dev` 서버
+ * (`http://192.168.x.x:3000`) 로 접속해 확인하는 경우가 있어서다.
+ */
+function isLocalDevice(): boolean {
+  // SSR 에서는 판단할 수 없다. `initAnalytics` 는 브라우저에서만 도니 문제없다.
+  if (typeof window === "undefined") return false;
+
+  const host = window.location.hostname;
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "0.0.0.0" ||
+    host === "[::1]" ||
+    host === "::1" ||
+    host.endsWith(".local") ||
+    host.endsWith(".localhost") ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+  );
+}
+
+/**
+ * 측정을 켤지. 키가 없거나(로컬·프리뷰에서 키 미주입) 개발 기기면 전부 no-op.
+ *
+ * 로컬을 막는 건 키 유무와 별개다 — `.env.local` 에 실제 키를 넣어두고 쓰는
+ * 개발자가 있어서 키만으로는 걸러지지 않는다.
+ */
 export function isAnalyticsEnabled(): boolean {
-  return typeof KEY === "string" && KEY.length > 0;
+  return typeof KEY === "string" && KEY.length > 0 && !isLocalDevice();
 }
 
 /** 앱 최상단에서 한 번. 브라우저에서만 의미가 있다. */
