@@ -70,7 +70,8 @@ chk 'page.tsx 의 "use client"' bash -c 'grep -rln "\"use client\"" src/app/issu
 chk 'sitemap 의 new Date()'    bash -c 'grep -n "new Date()" src/app/sitemap.ts src/app/*/sitemap.ts 2>/dev/null | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//)"'
 chk '도메인 하드코딩'           bash -c 'grep -rn --include="*.ts" --include="*.tsx" "toronchul\.app" src/ | grep -v "lib/seo.ts" | grep -v "NEXT_PUBLIC_WS_URL" | grep -v "NEXT_PUBLIC_IMAGE_URL"'
 chk 'const SITE_URL 로컬 선언'  bash -c 'grep -rn --include="*.ts" --include="*.tsx" "const SITE_URL" src/ | grep -v "lib/seo.ts"'
-chk 'URL 문자열 직접 조립'      bash -c 'grep -rn --include="*.ts" --include="*.tsx" -E -e "[\"\`]/(issue|debate|event|article)/" src/ | grep -v "lib/routes.ts" | grep -v "^\S*: *\*"'
+# 주석 줄(//, /**, *)과 sitemap 파일 경로(…/sitemap.xml)는 엔티티 URL 조립이 아니다
+chk 'URL 문자열 직접 조립'      bash -c 'grep -rn --include="*.ts" --include="*.tsx" -E -e "[\"\`]/(issue|debate|event|article)/" src/ | grep -v "lib/routes.ts" | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|/\*|\*)" | grep -v "/sitemap\.xml"'
 chk '폐기 스키마 (FAQPage 등)'  bash -c 'grep -rn --include="*.ts" --include="*.tsx" -e "FAQPage" -e "HowTo" -e "SpecialAnnouncement" src/'
 chk 'TDS 의 seo import'         bash -c 'grep -rn "@/lib/seo" src/components/TDS/ 2>/dev/null'
 chk 'any / @ts-ignore'          bash -c 'grep -rn --include="*.ts" --include="*.tsx" -e ": any" -e "@ts-ignore" src/lib/seo.ts src/app/sitemap.ts src/app/robots.ts 2>/dev/null'

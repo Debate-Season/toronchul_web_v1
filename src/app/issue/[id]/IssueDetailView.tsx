@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { MessageSquare, ArrowLeft } from "lucide-react";
 import {
@@ -39,6 +39,8 @@ function SkeletonShell() {
 /**
  * 이슈 상세 본문. 경로 판정은 서버 `page.tsx` 가 끝낸 뒤 정수 id 만 받는다.
  *
+ * `wiki` 는 서버가 렌더해 둔 토론위키 본문 슬롯이다(Markdown 렌더러를 브라우저로 보내지 않는다).
+ *
  * `initialData`·`initialRoom` 은 서버가 토큰 없이 받아 둔 값이다. 있으면 첫 렌더(SSR)
  * 부터 본문을 그려 크롤러가 읽을 수 있고, 하이드레이션 뒤 로그인 사용자 기준으로 다시 받는다.
  */
@@ -46,10 +48,13 @@ export default function IssueDetailView({
   issueId,
   initialData,
   initialRoom,
+  wiki,
 }: {
   issueId: number;
   initialData?: IssueDetailResponse;
   initialRoom?: IssueRoomResponse;
+  /** 게시된 위키가 없으면 비운다 — 빈 안내문도 그리지 않는다(PRD v1.0.0 §4.1) */
+  wiki?: ReactNode;
 }) {
   const { accessToken, _hasHydrated } = useAuthStore();
 
@@ -140,6 +145,9 @@ export default function IssueDetailView({
           </span>
         </div>
       </div>
+
+      {/* 토론위키 — 이슈를 설명하는 본문. 크롤러가 읽는 본문의 대부분이 여기서 나온다 */}
+      {wiki}
 
       {/* 참여 커뮤니티 — 이슈 내 토론방에 참여한 사용자들의 소속 커뮤니티 아이콘 */}
       {communityEntries.length > 0 && (

@@ -1,65 +1,40 @@
 /**
  * 엔티티별 sitemap 의 공용 데이터 (PRD v0.9.0 §6.2).
  *
- * 지금은 이슈 목록을 받은 뒤 이슈마다 상세를 불러 토론 주제와 생성일을 얻는다(N+1).
- * 이슈가 수십 건일 때만 성립한다 — 백엔드에 "id + 수정 시각" 페이지 목록 API 를
- * 요청해 두었고(§7-3), 오면 이 파일만 그것으로 바꾼다.
+ * 백엔드 사이트맵 피드(PR #217)를 쓴다 — 노출 대상만, "id + 수정 시각" 을 커서 페이지로
+ * 준다. 이슈마다 상세를 부르던 N+1 을 없앴고, lastmod 가 생성일이 아니라 실제 시각이 됐다.
+ * - 이슈 `updatedAt` = max(이슈 생성·수정, 노출 토론 주제 추가, 위키 게시)
+ * - 토론 `lastActivityAt` = 마지막 채팅 시각, 없으면 생성 시각
  *
- * 백엔드가 응답하지 않아도 빌드를 깨지 않는다. 받은 만큼만 내보내고 다음
- * 재생성(`revalidate`)에서 채운다.
+ * 백엔드가 응답하지 않아도 빌드를 깨지 않는다. 빈 목록을 내보내고 다음 재생성에서 채운다.
  */
 import type { MetadataRoute } from "next";
-import { fetchIssueDetail, isIndexableIssueStatus } from "@/lib/api/issue";
-import { fetchIssueMap } from "@/lib/api/issueMap";
-import { absoluteUrl, laterOf, seoulToIso } from "@/lib/seo";
+import { fetchAllSitemapIssues, fetchAllSitemapThreads } from "@/lib/api/sitemapFeed";
+import { debateHref, issueHref } from "@/lib/routes";
+import { absoluteUrl, seoulToIso } from "@/lib/seo";
 
-export interface SitemapIssue {
-  issueId: number;
-  /** 이슈 생성일과 가장 늦게 생긴 토론 주제의 생성일 중 늦은 쪽 — API 가 주는 정확한 시각은 생성일뿐이다 */
-  lastModified: string;
-  threads: { threadId: number; createdAt: string }[];
+type SitemapEntries = MetadataRoute.Sitemap;
+
+function entry(path: string, modified: string): SitemapEntries[number] {
+  return { url: absoluteUrl(path), lastModified: seoulToIso(modified) };
 }
 
-/** 노출 대상(PUBLISHED·DORMANT) 이슈와 그 토론 주제 */
-export async function loadSitemapIssues(): Promise<SitemapIssue[]> {
-  let issues: Awaited<ReturnType<typeof fetchIssueMap>>;
+export async function issueSitemapEntries(): Promise<SitemapEntries> {
   try {
-    issues = await fetchIssueMap();
+    const items = await fetchAllSitemapIssues();
+    return items.map((item) => entry(issueHref(item.issueId), item.updatedAt));
   } catch (err) {
-    console.error("[sitemap] 이슈 목록 조회 실패", err);
+    console.error("[sitemap] 이슈 피드 조회 실패", err);
     return [];
   }
-
-  const results = await Promise.allSettled(
-    issues
-      .filter((issue) => isIndexableIssueStatus(issue.status))
-      .map(async (issue) => ({ issue, detail: await fetchIssueDetail(issue.issueId) })),
-  );
-
-  const out: SitemapIssue[] = [];
-  for (const result of results) {
-    if (result.status === "rejected") {
-      console.error("[sitemap] 이슈 상세 조회 실패", result.reason);
-      continue;
-    }
-    const { issue, detail } = result.value;
-    if (!detail.title || !isIndexableIssueStatus(detail.status)) continue;
-    out.push({
-      issueId: issue.issueId,
-      lastModified: detail.chatRoomMap.reduce(
-        (acc, room) => laterOf(acc, room.createdAt) ?? acc,
-        issue.createdAt,
-      ),
-      threads: detail.chatRoomMap.map((room) => ({
-        threadId: room.chatRoomId,
-        createdAt: room.createdAt,
-      })),
-    });
-  }
-  return out;
 }
 
-/** 경로·백엔드 시각 → sitemap 항목 */
-export function sitemapEntry(path: string, modified: string): MetadataRoute.Sitemap[number] {
-  return { url: absoluteUrl(path), lastModified: seoulToIso(modified) };
+export async function debateSitemapEntries(): Promise<SitemapEntries> {
+  try {
+    const items = await fetchAllSitemapThreads();
+    return items.map((item) => entry(debateHref(item.threadId), item.lastActivityAt));
+  } catch (err) {
+    console.error("[sitemap] 토론 주제 피드 조회 실패", err);
+    return [];
+  }
 }

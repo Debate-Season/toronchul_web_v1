@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -19,6 +19,11 @@ interface DebateRoomProps {
   threadId: number;
   /** 서버가 토큰 없이 받아 둔 방 정보. 있으면 첫 렌더(SSR)부터 그리고, 하이드레이션 뒤 내 투표를 반영해 다시 받는다 */
   initialData?: IssueRoomResponse;
+  /**
+   * 서버가 만들어 둔 토론위키 요약 카드. 주제 패널 **아래**에 놓는다(PRD v1.0.0 §4.2).
+   * 게시된 위키가 없으면 비운다.
+   */
+  wikiCard?: ReactNode;
 }
 
 /**
@@ -44,6 +49,7 @@ export default function DebateRoom({
   issueId,
   threadId,
   initialData,
+  wikiCard,
 }: DebateRoomProps) {
   const { accessToken, _hasHydrated } = useAuthStore();
 
@@ -171,11 +177,22 @@ export default function DebateRoom({
         본문 상단에 같은 패널을 놓는다 — 안 그러면 투표에 닿을 수 없다.
         CSS 로 한쪽만 표시되므로 보조기술에도 하나만 노출된다.
       */}
-      <div className="flex-shrink-0 pb-3 md:hidden">
+      {/*
+        위키 카드도 같은 규칙이다. 단 포털은 마운트 뒤에만 그려져 서버 HTML 에 없으므로,
+        크롤러(모바일 우선 색인)가 읽는 건 이 본문 흐름 쪽 카드다 — 여기서 빼면 안 된다.
+      */}
+      <div className="flex flex-shrink-0 flex-col gap-3 pb-3 md:hidden">
         <ThreadPanel thread={thread} onVoted={reload} />
+        {wikiCard}
       </div>
       {rnbSlot &&
-        createPortal(<ThreadPanel thread={thread} onVoted={reload} />, rnbSlot)}
+        createPortal(
+          <div className="flex flex-col gap-3">
+            <ThreadPanel thread={thread} onVoted={reload} />
+            {wikiCard}
+          </div>,
+          rnbSlot,
+        )}
 
       {/* 대화 — 남는 높이를 채우고 이 안에서만 스크롤 */}
       <ChatRoom

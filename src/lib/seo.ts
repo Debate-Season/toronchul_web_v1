@@ -110,6 +110,8 @@ export function issueJsonLd(input: {
   description: string;
   datePublished?: string;
   dateModified?: string;
+  /** AI 생성·검수 고지. 위키가 있을 때만 — 가상의 사람 이름을 author 로 만들지 않는다 */
+  creditText?: string;
 }): JsonLdObject {
   const url = absoluteUrl(input.path);
   return {
@@ -122,6 +124,7 @@ export function issueJsonLd(input: {
     mainEntityOfPage: url,
     ...(input.datePublished && { datePublished: seoulToIso(input.datePublished) }),
     ...(input.dateModified && { dateModified: seoulToIso(input.dateModified) }),
+    ...(input.creditText && { creditText: input.creditText }),
     author: { "@id": ORGANIZATION_ID },
     publisher: { "@id": ORGANIZATION_ID },
     inLanguage: "ko",
