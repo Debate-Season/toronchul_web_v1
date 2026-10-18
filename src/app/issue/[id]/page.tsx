@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/issue";
 import { fetchIssueMap } from "@/lib/api/issueMap";
 import { fetchIssueRoom } from "@/lib/api/room";
+import { fetchIssueWiki, isPublishedWiki, type PublishedWiki } from "@/lib/api/wiki";
 import { issueHref, parseEntityId } from "@/lib/routes";
 import {
   SITE_NAME,
@@ -18,7 +19,9 @@ import {
   laterOf,
   toDescription,
 } from "@/lib/seo";
+import { WIKI_CREDIT_TEXT, wikiSummaryFromMarkdown } from "@/lib/wikiText";
 import JsonLd from "@/components/seo/JsonLd";
+import IssueWiki from "@/components/wiki/IssueWiki";
 import IssueDetailView from "./IssueDetailView";
 
 type Params = { params: Promise<{ id: string }> };
@@ -44,13 +47,22 @@ const loadIssue = cache(async (segment: string): Promise<{
   return { issueId: parsed.id, detail };
 });
 
+/** 게시된 위키. 없거나 조회에 실패하면 undefined — 위키 없이도 페이지는 성립한다 */
+const loadWiki = cache(async (issueId: number): Promise<PublishedWiki | undefined> => {
+  const wiki = await fetchIssueWiki(issueId).catch(() => undefined);
+  return wiki && isPublishedWiki(wiki) ? wiki : undefined;
+});
+
 /** 이슈 생성일은 상세 응답에 없어 목록에서 찾는다. 실패해도 페이지는 그린다 */
 const loadIssueCreatedAt = cache(async (issueId: number) => {
   const list = await fetchIssueMap().catch(() => []);
   return list.find((issue) => issue.issueId === issueId)?.createdAt;
 });
 
-function describe(detail: IssueDetailResponse): string {
+function describe(detail: IssueDetailResponse, wiki?: PublishedWiki): string {
+  // 위키가 있으면 이슈를 설명하는 첫 문단이 가장 좋은 설명이다(PRD v1.0.0 §5)
+  const summary = wiki && wikiSummaryFromMarkdown(wiki.content, 155);
+  if (summary) return toDescription(summary);
   const topics = detail.chatRoomMap.map((room) => room.title);
   if (topics.length === 0) {
     return toDescription(`${detail.title} — ${SITE_NAME}에서 이 이슈의 토론을 확인하세요.`);
@@ -66,9 +78,10 @@ function describe(detail: IssueDetailResponse): string {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
   const { issueId, detail } = await loadIssue(id);
+  const wiki = await loadWiki(issueId);
   return buildMetadata({
     title: detail.title,
-    description: describe(detail),
+    description: describe(detail, wiki),
     path: issueHref(issueId),
     type: "article",
   });
@@ -84,17 +97,18 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function IssuePage({ params }: Params) {
   const { id } = await params;
   const { issueId, detail } = await loadIssue(id);
-  const [room, createdAt] = await Promise.all([
+  const [room, createdAt, wiki] = await Promise.all([
     // 토론 주제 목록은 없어도 페이지가 성립한다 — 실패하면 클라이언트가 다시 받는다
     fetchIssueRoom(issueId).catch(() => undefined),
     loadIssueCreatedAt(issueId),
+    loadWiki(issueId),
   ]);
 
   const path = issueHref(issueId);
-  // 실제 수정 시각이 API 에 없어, 가장 늦게 생긴 토론 주제의 생성일을 쓴다(§6.2)
-  const dateModified = detail.chatRoomMap.reduce(
-    (acc, room) => laterOf(acc, room.createdAt),
-    createdAt,
+  // 가장 늦게 생긴 토론 주제와 위키 갱신 중 늦은 쪽. 위키 updatedAt 은 실제 수정 시각이다
+  const dateModified = laterOf(
+    detail.chatRoomMap.reduce((acc, r) => laterOf(acc, r.createdAt), createdAt),
+    wiki?.updatedAt,
   );
 
   return (
@@ -103,9 +117,10 @@ export default async function IssuePage({ params }: Params) {
         data={issueJsonLd({
           path,
           title: detail.title,
-          description: describe(detail),
+          description: describe(detail, wiki),
           datePublished: createdAt,
           dateModified,
+          creditText: wiki && WIKI_CREDIT_TEXT,
         })}
       />
       <JsonLd
@@ -120,6 +135,7 @@ export default async function IssuePage({ params }: Params) {
         issueId={issueId}
         initialData={detail}
         initialRoom={room}
+        wiki={wiki && <IssueWiki content={wiki.content} updatedAt={wiki.updatedAt} />}
       />
     </>
   );

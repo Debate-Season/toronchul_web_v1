@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { fetchIssueRoom, fetchRoomDetail, type RoomDetailResponse } from "@/lib/api/room";
+import { fetchIssueWiki, isPublishedWiki } from "@/lib/api/wiki";
 import { debateHref, issueHref, parseEntityId } from "@/lib/routes";
 import {
   SITE_NAME,
@@ -11,7 +12,9 @@ import {
   debateJsonLd,
   toDescription,
 } from "@/lib/seo";
+import { WIKI_CREDIT_SHORT, formatWikiDate, wikiSummaryFromMarkdown } from "@/lib/wikiText";
 import JsonLd from "@/components/seo/JsonLd";
+import DeWikiSummaryCard from "@/components/TDS/DeWikiSummaryCard";
 import DebateRoom from "@/components/room/DebateRoom";
 
 /** 색인·노출 대상인 방 상태. HIDDEN·DELETED 는 백엔드가 200 으로 주지만 404 로 낸다 */
@@ -71,11 +74,29 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function DebatePage({ params }: Params) {
   const { id } = await params;
   const { threadId, room } = await loadThread(id);
-  // 실패해도 클라이언트가 다시 받는다
-  const issueRoom = await fetchIssueRoom(room.issueId).catch(() => undefined);
+  const [issueRoom, wiki] = await Promise.all([
+    // 실패해도 클라이언트가 다시 받는다
+    fetchIssueRoom(room.issueId).catch(() => undefined),
+    // 위키는 없어도 토론방이 성립한다
+    fetchIssueWiki(room.issueId).catch(() => undefined),
+  ]);
 
   const path = debateHref(threadId);
   const issuePath = issueHref(room.issueId);
+
+  // 요약만 싣는다 — 본문 전체는 이슈 페이지 한 곳에만 둔다(같은 본문이 모든 토론 페이지에 반복되면 중복 콘텐츠)
+  const wikiSummary =
+    wiki && isPublishedWiki(wiki) ? wikiSummaryFromMarkdown(wiki.content) : null;
+  const wikiCard =
+    wiki && isPublishedWiki(wiki) && wikiSummary ? (
+      <DeWikiSummaryCard
+        issueTitle={room.issueTitle}
+        summary={wikiSummary}
+        href={`${issuePath}#wiki`}
+        updatedAt={formatWikiDate(wiki.updatedAt)}
+        creditText={WIKI_CREDIT_SHORT}
+      />
+    ) : undefined;
 
   return (
     <>
@@ -102,6 +123,7 @@ export default async function DebatePage({ params }: Params) {
         issueId={room.issueId}
         threadId={threadId}
         initialData={issueRoom}
+        wikiCard={wikiCard}
       />
     </>
   );
