@@ -43,11 +43,14 @@ export function buildMetadata(input: {
   description: string;
   path: string;
   type?: "website" | "article";
+  /** false 면 `noindex, follow` — 링크는 따라가되 이 페이지는 색인하지 않는다 */
+  indexable?: boolean;
 }): Metadata {
   return {
     title: input.title,
     description: input.description,
     alternates: { canonical: input.path },
+    ...(input.indexable === false && { robots: { index: false, follow: true } }),
     openGraph: {
       type: input.type ?? "website",
       siteName: SITE_NAME,
@@ -127,6 +130,55 @@ export function issueJsonLd(input: {
     ...(input.creditText && { creditText: input.creditText }),
     author: { "@id": ORGANIZATION_ID },
     publisher: { "@id": ORGANIZATION_ID },
+    inLanguage: "ko",
+  };
+}
+
+/**
+ * 토론철 아티클을 검색 색인에 열지 여부 (PRD v1.1.0 §2.3 발행 게이트).
+ *
+ * scaled content abuse 판정은 도메인 전체에 걸린다 — 아티클 때문에 이슈·토론까지 떨어질 수 있다.
+ * 게이트(인터넷신문 등록 확인 등)를 통과하기 전에는 `false`: 아티클 페이지는 열되
+ * `noindex, follow` 로 내보내고 sitemap 에서도 뺀다(noindex ↔ sitemap 동기화). 크롤을 막는
+ * robots Disallow 가 아니라 noindex 를 쓰는 이유는, Disallow 하면 크롤러가 noindex 를 읽지
+ * 못해 외부 링크만으로 URL 이 색인될 수 있기 때문이다. 게이트를 통과하면 `true` 로 바꾼다.
+ */
+export const ARTICLE_INDEXABLE = false;
+
+/**
+ * 토론철 아티클. 작성자는 조직이다 — "토론철 AI 기자" 는 바이라인 문구일 뿐 사람이 아니고,
+ * 가상의 인물을 author 로 만들지 않는다(데이터 세션·웹 공통 방침).
+ */
+export function articleJsonLd(input: {
+  path: string;
+  headline: string;
+  description: string;
+  datePublished: string;
+  dateModified: string;
+  section?: string;
+  keywords?: string[];
+  creditText: string;
+  aboutIssuePaths: string[];
+}): JsonLdObject {
+  const url = absoluteUrl(input.path);
+  return {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "@id": `${url}#article`,
+    headline: input.headline,
+    description: input.description,
+    url,
+    mainEntityOfPage: url,
+    datePublished: seoulToIso(input.datePublished),
+    dateModified: seoulToIso(input.dateModified),
+    author: { "@id": ORGANIZATION_ID },
+    publisher: { "@id": ORGANIZATION_ID },
+    creditText: input.creditText,
+    ...(input.section && { articleSection: input.section }),
+    ...(input.keywords?.length && { keywords: input.keywords.join(", ") }),
+    ...(input.aboutIssuePaths.length && {
+      about: input.aboutIssuePaths.map((p) => ({ "@id": `${absoluteUrl(p)}#article` })),
+    }),
     inLanguage: "ko",
   };
 }

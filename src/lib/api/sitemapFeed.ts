@@ -1,5 +1,5 @@
-// 사이트맵용 비로그인 커서 페이징 피드 — GET /api/v1/sitemap/issues, GET /api/v1/sitemap/threads
-// 2026-10-19 실 curl(`GET /api/v1/sitemap/{issues,threads}`, 백엔드 PR #217)로 확인
+// 사이트맵용 비로그인 커서 페이징 피드 — GET /api/v1/sitemap/{issues,threads,articles}
+// 2026-10-19 실 curl 확인: issues·threads(백엔드 PR #217), articles(#222, Swagger `PageArticle` — 아직 0건)
 import { apiFetch } from "./client";
 
 // ── Types ────────────────────────────────────────
@@ -22,6 +22,12 @@ export interface SitemapThreadItem {
   lastActivityAt: string;
 }
 
+export interface SitemapArticleItem {
+  articleId: number;
+  /** 마지막 수정 시각. 게시 뒤 수정이 없으면 게시 시각. `yyyy-MM-dd'T'HH:mm:ss` (Asia/Seoul) */
+  updatedAt: string;
+}
+
 /** 커서 페이지. nextCursor 가 null 이면 마지막 페이지 */
 export interface SitemapPage<T> {
   items: T[];
@@ -30,6 +36,7 @@ export interface SitemapPage<T> {
 
 export type SitemapIssuesPage = SitemapPage<SitemapIssueItem>;
 export type SitemapThreadsPage = SitemapPage<SitemapThreadItem>;
+export type SitemapArticlesPage = SitemapPage<SitemapArticleItem>;
 
 // ── API ──────────────────────────────────────────
 
@@ -62,6 +69,21 @@ export async function fetchSitemapThreadsPage(
   return apiFetch<SitemapThreadsPage>(
     `/api/v1/sitemap/threads${buildQuery(cursor, size)}`,
   );
+}
+
+/** 아티클 피드 한 페이지 — 게시된 토론철판만 */
+export async function fetchSitemapArticlesPage(
+  cursor?: number,
+  size?: number,
+): Promise<SitemapArticlesPage> {
+  return apiFetch<SitemapArticlesPage>(
+    `/api/v1/sitemap/articles${buildQuery(cursor, size)}`,
+  );
+}
+
+/** 아티클 피드 전체 */
+export async function fetchAllSitemapArticles(): Promise<SitemapArticleItem[]> {
+  return collectAll(fetchSitemapArticlesPage);
 }
 
 /** 이슈 피드 전체 (size 5000 으로 nextCursor 가 null 일 때까지) */

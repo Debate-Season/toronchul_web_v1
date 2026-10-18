@@ -9,9 +9,13 @@
  * 백엔드가 응답하지 않아도 빌드를 깨지 않는다. 빈 목록을 내보내고 다음 재생성에서 채운다.
  */
 import type { MetadataRoute } from "next";
-import { fetchAllSitemapIssues, fetchAllSitemapThreads } from "@/lib/api/sitemapFeed";
-import { debateHref, issueHref } from "@/lib/routes";
-import { absoluteUrl, seoulToIso } from "@/lib/seo";
+import {
+  fetchAllSitemapArticles,
+  fetchAllSitemapIssues,
+  fetchAllSitemapThreads,
+} from "@/lib/api/sitemapFeed";
+import { articleHref, debateHref, issueHref } from "@/lib/routes";
+import { ARTICLE_INDEXABLE, absoluteUrl, seoulToIso } from "@/lib/seo";
 
 type SitemapEntries = MetadataRoute.Sitemap;
 
@@ -25,6 +29,21 @@ export async function issueSitemapEntries(): Promise<SitemapEntries> {
     return items.map((item) => entry(issueHref(item.issueId), item.updatedAt));
   } catch (err) {
     console.error("[sitemap] 이슈 피드 조회 실패", err);
+    return [];
+  }
+}
+
+/**
+ * 아티클 — **색인 게이트(`ARTICLE_INDEXABLE`)가 열렸을 때만** 내보낸다. noindex 인 페이지를
+ * sitemap 에 넣으면 "크롤해라 + 색인하지 마라" 모순 신호가 된다.
+ */
+export async function articleSitemapEntries(): Promise<SitemapEntries> {
+  if (!ARTICLE_INDEXABLE) return [];
+  try {
+    const items = await fetchAllSitemapArticles();
+    return items.map((item) => entry(articleHref(item.articleId), item.updatedAt));
+  } catch (err) {
+    console.error("[sitemap] 아티클 피드 조회 실패", err);
     return [];
   }
 }

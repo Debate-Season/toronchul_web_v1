@@ -1,4 +1,4 @@
-import { absoluteUrl } from "@/lib/seo";
+import { ARTICLE_INDEXABLE, absoluteUrl } from "@/lib/seo";
 
 /**
  * 사이트맵 색인 — `/sitemap-index.xml` (PRD v0.9.0 §6.2).
@@ -10,7 +10,13 @@ import { absoluteUrl } from "@/lib/seo";
  * 하위 파일의 `lastmod` 는 생략한다(선택 항목). 넣으려면 하위 파일과 같은 데이터를
  * 다시 받아야 하는데, 틀린 값을 내느니 비우는 편이 낫다.
  */
-const CHILD_SITEMAPS = ["/sitemap.xml", "/issue/sitemap.xml", "/debate/sitemap.xml"];
+const CHILD_SITEMAPS = [
+  "/sitemap.xml",
+  "/issue/sitemap.xml",
+  "/debate/sitemap.xml",
+  // 아티클은 색인 게이트가 열린 뒤에만 알린다(PRD v1.1.0 §2.3). 4만 건을 넘으면 샤드로 나눈다
+  ...(ARTICLE_INDEXABLE ? ["/article/sitemap.xml"] : []),
+];
 
 export const dynamic = "force-static";
 
