@@ -1,6 +1,7 @@
 // 이슈 토론위키 조회 — GET /api/v2/wiki
 // 2026-10-19 실 curl(`GET /api/v2/wiki?issue-id=8`)·Swagger `WikiResponse` 로 확인
 import { apiFetch } from "./client";
+import { toBackendDateTime } from "./dateTime";
 
 // ── Types (GET /api/v2/wiki) ─────────────────────
 
@@ -61,26 +62,6 @@ export async function fetchIssueWiki(
     token,
   });
   return { ...raw, updatedAt: toBackendDateTime(raw.updatedAt) };
-}
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-/**
- * 백엔드 시각을 `yyyy-MM-dd'T'HH:mm:ss` 문자열로. 문자열이면 그대로, Jackson 배열
- * `[y, M, d, H?, m?, s?, nano?]` 이면 조립한다. 그 밖은 null — 위키를 미게시로 취급해
- * 섹션·카드를 그리지 않는다(페이지는 깨지지 않는다).
- */
-function toBackendDateTime(value: unknown): string | null {
-  if (typeof value === "string") return value;
-  if (
-    Array.isArray(value) &&
-    value.length >= 3 &&
-    value.every((n): n is number => typeof n === "number" && Number.isInteger(n))
-  ) {
-    const [y, mo, d, h = 0, mi = 0, s = 0] = value;
-    return `${y}-${pad2(mo)}-${pad2(d)}T${pad2(h)}:${pad2(mi)}:${pad2(s)}`;
-  }
-  return null;
 }
 
 // ── Helpers ──────────────────────────────────────

@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api/client";
+import { toBackendDateTime } from "@/lib/api/dateTime";
 
 // ── Types ─────────────────────────────────────────
 /** GET /api/v1/terms 항목 */
@@ -12,8 +13,14 @@ export interface Terms {
 /** GET /api/v1/terms/agree 항목 (내가 동의한 약관 현황) */
 export interface TermsMyAgree {
   termsType: string;
+  /** `yyyy-MM-ddTHH:mm:ss`. 백엔드는 배열로 내려 주므로 받을 때 정규화한다(`dateTime.ts`). 해석 불가면 "" */
   agreedAt: string;
   notionUrl: string;
+}
+
+/** 실제 응답 — `agreedAt` 이 Jackson 배열로 온다(백엔드 확인, 앱 호환 때문에 유지) */
+interface RawTermsMyAgree extends Omit<TermsMyAgree, "agreedAt"> {
+  agreedAt: unknown;
 }
 
 export interface TermsAgreement {
@@ -32,7 +39,8 @@ export async function getTerms(token: string | null): Promise<Terms[]> {
 export async function getTermsAgree(
   token: string | null,
 ): Promise<TermsMyAgree[]> {
-  return apiFetch<TermsMyAgree[]>("/api/v1/terms/agree", { token });
+  const raw = await apiFetch<RawTermsMyAgree[]>("/api/v1/terms/agree", { token });
+  return raw.map((item) => ({ ...item, agreedAt: toBackendDateTime(item.agreedAt) ?? "" }));
 }
 
 /** POST /api/v1/terms/agree — 약관 동의 제출 */

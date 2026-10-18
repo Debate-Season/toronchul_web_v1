@@ -49,7 +49,8 @@ export default function SettingsPolicyContent() {
 
   const agreedAtOf = (termsType: string): string => {
     const found = agreements?.find((a) => a.termsType === termsType);
-    return found?.agreedAt ?? "";
+    // `yyyy-MM-ddTHH:mm:ss` → `yyyy.MM.dd`. 정규화 실패면 빈 문자열이 온다
+    return found?.agreedAt ? found.agreedAt.slice(0, 10).replace(/-/g, ".") : "";
   };
 
   return (
