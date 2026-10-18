@@ -1,66 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchIssueRoom, type IssueRoomResponse } from "@/lib/api/room";
+import type { IssueRoomResponse } from "@/lib/api/room";
 import { debateHref } from "@/lib/routes";
-import useAuthStore from "@/store/useAuthStore";
 import DeVoteGauge from "@/components/TDS/DeVoteGauge";
 
 interface IssueThreadListProps {
-  issueId: number;
-  /** 서버가 토큰 없이 받아 둔 목록. 있으면 첫 렌더(SSR)부터 그리고, 하이드레이션 뒤 내 투표를 반영해 다시 받는다 */
-  initialData?: IssueRoomResponse;
+  /** `useIssueRoom` 이 받은 목록. 없으면 `pending`·`error` 로 상태를 그린다 */
+  data: IssueRoomResponse | null;
+  pending: boolean;
+  error: string | null;
+  onRetry: () => void;
 }
 
 /**
  * 이슈 상세의 토론 주제 목록. 주제를 고르면 그 주제 탭이 열린 토론방으로 간다.
  *
- * 찬반 수치는 `GET /api/v2/room` 이 스레드마다 이미 내려주므로 여기서 방별로
- * 추가 조회를 하지 않는다.
+ * 데이터는 부모가 `useIssueRoom` 으로 받아 내려준다 — 같은 목록이 모바일 본문과 데스크톱
+ * 우측 사이드바 두 자리에 그려지기 때문이다. 찬반 수치는 `GET /api/v2/room` 이 스레드마다
+ * 이미 내려주므로 방별로 추가 조회하지 않는다.
  */
 export default function IssueThreadList({
-  issueId,
-  initialData,
+  data,
+  pending,
+  error,
+  onRetry,
 }: IssueThreadListProps) {
-  const { accessToken, _hasHydrated } = useAuthStore();
-
-  const [data, setData] = useState<IssueRoomResponse | null>(initialData ?? null);
-  const [loading, setLoading] = useState(!initialData);
-  const [error, setError] = useState<string | null>(null);
-  const [retryKey, setRetryKey] = useState(0);
-
-  useEffect(() => {
-    if (!_hasHydrated || !issueId) return;
-
-    let cancelled = false;
-
-    async function load() {
-      try {
-        // 초기 데이터가 있으면 다시 받는 동안에도 그것을 보여 준다 — 스켈레톤으로 깜빡이지 않게
-        if (retryKey > 0) setLoading(true);
-        setError(null);
-        const res = await fetchIssueRoom(issueId, accessToken);
-        if (!cancelled) setData(res);
-      } catch (err) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "토론방을 불러오지 못했습니다.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [_hasHydrated, accessToken, issueId, retryKey]);
-
   if (!data) {
-    if (!_hasHydrated || loading) return <ListSkeleton />;
+    if (pending) return <ListSkeleton />;
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-12">
         <p className="text-body-14 text-red">
@@ -68,7 +35,7 @@ export default function IssueThreadList({
         </p>
         <button
           type="button"
-          onClick={() => setRetryKey((k) => k + 1)}
+          onClick={onRetry}
           className="rounded-lg border border-border px-4 py-2 text-body-14 text-text-secondary transition-colors hover:bg-grey-90 cursor-pointer"
         >
           다시 시도

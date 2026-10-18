@@ -20,14 +20,14 @@ import { PUBLIC_NAV_ITEMS } from "@/components/layout/navItems";
 import { RNB_SLOT_ID } from "@/lib/layoutSlots";
 
 /**
- * 토론방 라우트(`/debate/[id]`) 판별.
+ * 우측 사이드바를 페이지에 빌려주는 라우트 판별 — 토론방(`/debate/[id]`)과 이슈 상세(`/issue/[id]`).
  *
- * 이 화면에서만 우측 사이드바가 "실시간 핫한 토론" 대신 **토론방이 채우는 빈
- * 자리**가 된다. 이슈 상세(`/issue/[id]`)는 해당 없다.
+ * 이 화면에서는 우측 사이드바가 "실시간 핫한 토론" 대신 **페이지가 채우는 빈 자리**가 된다.
+ * 토론방은 주제 패널·위키 요약 카드를, 이슈 상세는 참여 커뮤니티·토론 주제를 그린다.
  */
-function isDebateRoomPath(pathname: string): boolean {
+function isSidebarSlotPath(pathname: string): boolean {
   const segments = pathname.split("/").filter(Boolean);
-  return segments.length === 2 && segments[0] === "debate";
+  return segments.length === 2 && (segments[0] === "debate" || segments[0] === "issue");
 }
 
 // ── Top Bar ────────────────────────────────────────
@@ -265,16 +265,16 @@ function LeftSidebar() {
 }
 
 // ── Right Sidebar (RNB) ───────────────────────────
-// 토론방에서는 토론방이 portal 로 채우는 빈 자리, 그 외에는 "실시간 핫한 토론".
+// 토론방·이슈 상세에서는 페이지가 portal 로 채우는 빈 자리, 그 외에는 "실시간 핫한 토론".
 // 레이아웃이 `room/` 컴포넌트를 직접 import 하지 않으려는 것 — 불문율 #7.
 function RightSidebar() {
   const pathname = usePathname();
-  const inDebateRoom = isDebateRoomPath(pathname);
+  const pageOwnsSlot = isSidebarSlotPath(pathname);
 
   return (
     <aside className="fixed right-0 top-14 w-80 h-[calc(100vh-3.5rem)] hidden md:block overflow-y-auto">
       <div className="p-4">
-        {inDebateRoom ? <div id={RNB_SLOT_ID} /> : <HotDebateCard />}
+        {pageOwnsSlot ? <div id={RNB_SLOT_ID} /> : <HotDebateCard />}
       </div>
     </aside>
   );

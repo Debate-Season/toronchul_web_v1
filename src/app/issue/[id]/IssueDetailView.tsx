@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { MessageSquare, ArrowLeft } from "lucide-react";
 import {
@@ -10,6 +11,8 @@ import {
 import { imageUrl } from "@/lib/imageUrl";
 import useAuthStore from "@/store/useAuthStore";
 import IssueThreadList from "@/components/room/IssueThreadList";
+import useIssueRoom from "@/components/room/useIssueRoom";
+import { RNB_SLOT_ID } from "@/lib/layoutSlots";
 import type { IssueRoomResponse } from "@/lib/api/room";
 import { capture } from "@/lib/analytics/client";
 
@@ -60,6 +63,13 @@ export default function IssueDetailView({
   timeline?: ReactNode;
 }) {
   const { accessToken, _hasHydrated } = useAuthStore();
+  const room = useIssueRoom(issueId, initialRoom);
+
+  // 우측 사이드바가 내준 자리. SSR 에는 없으므로 effect 로 잡는다(토론방과 같은 방식)
+  const [rnbSlot, setRnbSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setRnbSlot(document.getElementById(RNB_SLOT_ID));
+  }, []);
 
   // 조회 성공 여부와 무관하게 "이 이슈를 열었다"는 사실을 기록한다.
   // 로드 실패까지 포함해야 이탈 지점이 보인다.
@@ -125,6 +135,43 @@ export default function IssueDetailView({
 
   const communityEntries = Object.entries(data.map);
 
+  // 참여 커뮤니티 + 토론 주제는 우측 사이드바("실시간 핫한 토론" 자리)에 놓는다. 사이드바가
+  // 없는 `md` 미만에서는 본문 끝에 같은 내용을 둔다 — CSS 로 한쪽만 보인다. 포털은 마운트
+  // 뒤에만 그려져 서버 HTML 에 없으므로, 크롤러가 읽는 토론 주제 링크는 본문 쪽이다.
+  const sidebar = (
+    <div className="flex flex-col gap-6">
+      {communityEntries.length > 0 && (
+        <section>
+          <h2 className="text-body-16 font-semibold text-text-primary mb-3">
+            참여 커뮤니티
+          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {communityEntries.map(([iconPath]) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={iconPath}
+                src={imageUrl(iconPath)}
+                alt="커뮤니티"
+                width={32}
+                height={32}
+                className="rounded-lg object-cover"
+                style={{ width: 32, height: 32 }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 토론 주제 목록 → 해당 주제 탭이 열린 토론방으로 (GET /api/v2/room) */}
+      <IssueThreadList
+        data={room.data}
+        pending={room.pending}
+        error={room.error}
+        onRetry={room.retry}
+      />
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6 py-4">
       {/* 뒤로가기 */}
@@ -155,31 +202,8 @@ export default function IssueDetailView({
       {/* 사건 타임라인 — 위키(배경) 다음, 토론 주제(여론) 앞. "무슨 일이 있었나" */}
       {timeline}
 
-      {/* 참여 커뮤니티 — 이슈 내 토론방에 참여한 사용자들의 소속 커뮤니티 아이콘 */}
-      {communityEntries.length > 0 && (
-        <section>
-          <h2 className="text-body-16 font-semibold text-text-primary mb-3">
-            참여 커뮤니티
-          </h2>
-          <div className="flex flex-wrap items-center gap-2">
-            {communityEntries.map(([iconPath]) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={iconPath}
-                src={imageUrl(iconPath)}
-                alt="커뮤니티"
-                width={32}
-                height={32}
-                className="rounded-lg object-cover"
-                style={{ width: 32, height: 32 }}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* 토론 주제 목록 → 해당 주제 탭이 열린 토론방으로 (GET /api/v2/room) */}
-      <IssueThreadList issueId={issueId} initialData={initialRoom} />
+      <div className="md:hidden">{sidebar}</div>
+      {rnbSlot && createPortal(sidebar, rnbSlot)}
     </div>
   );
 }
