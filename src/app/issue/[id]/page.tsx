@@ -49,10 +49,28 @@ const loadIssue = cache(async (segment: string): Promise<{
   return { issueId: parsed.id, detail };
 });
 
+/**
+ * 위키 상태. `missing` 은 "게시본이 없다고 확인됨", `unknown` 은 "조회 실패" 다 — 둘을
+ * 구분해야 백엔드가 잠깐 실패했을 때 색인 신호가 꺼졌다 켜지지 않는다(flapping 방지).
+ */
+type WikiState =
+  | { kind: "published"; wiki: PublishedWiki }
+  | { kind: "missing" }
+  | { kind: "unknown" };
+
+const loadWikiState = cache(async (issueId: number): Promise<WikiState> => {
+  try {
+    const wiki = await fetchIssueWiki(issueId);
+    return isPublishedWiki(wiki) ? { kind: "published", wiki } : { kind: "missing" };
+  } catch {
+    return { kind: "unknown" };
+  }
+});
+
 /** 게시된 위키. 없거나 조회에 실패하면 undefined — 위키 없이도 페이지는 성립한다 */
 const loadWiki = cache(async (issueId: number): Promise<PublishedWiki | undefined> => {
-  const wiki = await fetchIssueWiki(issueId).catch(() => undefined);
-  return wiki && isPublishedWiki(wiki) ? wiki : undefined;
+  const state = await loadWikiState(issueId);
+  return state.kind === "published" ? state.wiki : undefined;
 });
 
 /** 이슈 생성일은 상세 응답에 없어 목록에서 찾는다. 실패해도 페이지는 그린다 */
@@ -81,12 +99,16 @@ function describe(detail: IssueDetailResponse, wiki?: PublishedWiki): string {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
   const { issueId, detail } = await loadIssue(id);
-  const wiki = await loadWiki(issueId);
+  const state = await loadWikiState(issueId);
+  const wiki = state.kind === "published" ? state.wiki : undefined;
   return buildMetadata({
     title: detail.title,
     description: describe(detail, wiki),
     path: issueHref(issueId),
     type: "article",
+    // 위키가 없다고 **확인된** 이슈는 색인하지 않는다 — 이슈가 막 생겨 본문이 비어 있는 단계다.
+    // 조회 실패(unknown)는 색인을 유지한다. 위키가 게시되면 다음 렌더부터 자동으로 풀린다
+    indexable: state.kind !== "missing",
   });
 }
 
