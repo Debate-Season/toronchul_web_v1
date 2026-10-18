@@ -144,7 +144,7 @@ export default function EventTimeline({ events }: { events: TimelineEventView[] 
 
   return (
     <section aria-labelledby="timeline-heading" className="flex flex-col gap-3">
-      <h2 id="timeline-heading" className="text-header-18 font-semibold text-text-primary">
+      <h2 id="timeline-heading" className="text-header-24 font-bold text-text-primary">
         사건 타임라인
       </h2>
 
@@ -197,7 +197,7 @@ export default function EventTimeline({ events }: { events: TimelineEventView[] 
                   </time>
                 )}
                 <h3
-                  className={`line-clamp-2 text-header-18 font-semibold ${
+                  className={`line-clamp-2 text-header-20 font-semibold ${
                     on ? "text-text-primary" : "text-text-secondary"
                   }`}
                 >

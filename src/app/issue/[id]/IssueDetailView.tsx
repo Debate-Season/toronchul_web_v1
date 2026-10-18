@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { MessageSquare, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   fetchIssueDetail,
   type IssueDetailResponse,
@@ -142,7 +142,7 @@ export default function IssueDetailView({
     <div className="flex flex-col gap-6">
       {communityEntries.length > 0 && (
         <section>
-          <h2 className="text-body-16 font-semibold text-text-primary mb-3">
+          <h2 className="mb-3 text-header-20 font-bold text-text-primary">
             참여 커뮤니티
           </h2>
           <div className="flex flex-wrap items-center gap-2">
@@ -173,27 +173,17 @@ export default function IssueDetailView({
   );
 
   return (
-    <div className="flex flex-col gap-6 py-4">
-      {/* 뒤로가기 */}
-      <Link
-        href="/"
-        className="flex items-center gap-1 text-caption-12 text-text-secondary w-fit"
-      >
-        <ArrowLeft size={14} />
-        홈으로
-      </Link>
-
-      {/* 헤더 */}
-      <div>
-        <h1 className="text-header-20 font-bold text-text-primary">
-          {data.title}
-        </h1>
-        <div className="flex items-center gap-4 mt-2 text-caption-12 text-text-secondary">
-          <span className="flex items-center gap-1">
-            <MessageSquare size={12} />
-            토론 주제 {data.chatRoomMap.length}개
-          </span>
-        </div>
+    <div className="flex flex-col gap-10 py-4">
+      {/* 뒤로가기 + 헤더. 토론 주제 수는 우측 사이드바의 토론 주제 제목으로 옮겼다 */}
+      <div className="flex flex-col gap-3">
+        <Link
+          href="/"
+          className="flex items-center gap-1 text-caption-12 text-text-secondary w-fit"
+        >
+          <ArrowLeft size={14} />
+          홈으로
+        </Link>
+        <h1 className="text-header-28 font-bold text-text-primary">{data.title}</h1>
       </div>
 
       {/* 사건 타임라인 — 가장 위. "최근 무슨 일이 있었나" 가 이슈 페이지의 첫 정보다 */}
