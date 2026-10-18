@@ -96,6 +96,16 @@ function isTokenExpired(token: string, skewSeconds = 30): boolean {
  */
 const DEFAULT_TIMEOUT = 10_000; // 10 s
 
+/**
+ * 서버에서 토큰 없이 부르는 GET 의 캐시 시간(초).
+ *
+ * 서버 렌더는 모든 방문자·크롤러의 요청을 Vercel 서버 IP 몇 개로 백엔드에 보낸다.
+ * 백엔드는 비로그인 요청을 IP당 분당 100회로 막으므로(초과 시 429 → 페이지 500),
+ * 같은 데이터를 매 요청 다시 받지 않게 한다. 익명 데이터라 사용자 간에 공유해도
+ * 안전하고, 화면은 하이드레이션 뒤 클라이언트가 다시 받아 최신으로 바꾼다.
+ */
+const SERVER_ANON_REVALIDATE = 60;
+
 export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {},
@@ -128,6 +138,15 @@ export async function apiFetch<T>(
     mergedHeaders["Authorization"] = `Bearer ${token}`;
   }
 
+  const serverCache =
+    typeof window === "undefined" &&
+    !token &&
+    (rest.method ?? "GET") === "GET" &&
+    rest.cache === undefined &&
+    rest.next === undefined
+      ? { next: { revalidate: SERVER_ANON_REVALIDATE } }
+      : {};
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
 
@@ -136,6 +155,7 @@ export async function apiFetch<T>(
     res = await fetch(`${API_URL}${path}`, {
       headers: mergedHeaders,
       signal: controller.signal,
+      ...serverCache,
       ...rest,
     });
   } catch (err) {

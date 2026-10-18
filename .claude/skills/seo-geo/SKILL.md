@@ -40,7 +40,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash(${CLAUDE_SKILL_DIR}/scripts/a
 | `src/lib/seo.ts` | `SITE_URL` · `buildMetadata` · JSON-LD 빌더 — **단일 출처** |
 | `src/lib/routes.ts` (구 `slug.ts`) | `issueHref` · `debateHref` · `eventHref` · `articleHref` · `parseEntityId` — URL 조립·판정의 유일한 경로 |
 | `src/app/layout.tsx` | `metadataBase` · `title.template` · 전역 robots/OG · Organization JSON-LD |
-| `src/app/robots.ts` · `src/app/sitemap.ts` | 봇 규칙 · URL 목록 |
+| `src/app/robots.ts` | 봇 규칙 (단일 그룹) · `Sitemap:` 은 색인 하나 |
+| `src/app/sitemap-index.xml/route.ts` · `src/app/{,issue/,debate/}sitemap.ts` · `src/lib/sitemap.ts` | 사이트맵 색인 + 엔티티별 파일. 새 엔티티는 색인의 `CHILD_SITEMAPS` 에 추가 (PRD §6.2) |
 | `src/app/{issue,debate,event,article}/[id]/page.tsx` | 상세 (서버 컴포넌트) |
 | `src/lib/api/{issue,room,chat}.ts` | SSR 데이터 소스 (`apiFetch` 경유) |
 

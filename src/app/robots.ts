@@ -29,6 +29,7 @@ export default function robots(): MetadataRoute.Robots {
         "/onboarding",
       ],
     },
-    sitemap: absoluteUrl("/sitemap.xml"),
+    // 색인 하나만 알린다. 하위 sitemap 은 색인이 가리킨다
+    sitemap: absoluteUrl("/sitemap-index.xml"),
   };
 }
