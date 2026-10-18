@@ -9,6 +9,7 @@
  * 백엔드가 응답하지 않아도 빌드를 깨지 않는다. 빈 목록을 내보내고 다음 재생성에서 채운다.
  */
 import type { MetadataRoute } from "next";
+import { fetchIssueWiki, isPublishedWiki } from "@/lib/api/wiki";
 import {
   fetchAllSitemapArticles,
   fetchAllSitemapIssues,
@@ -23,10 +24,27 @@ function entry(path: string, modified: string): SitemapEntries[number] {
   return { url: absoluteUrl(path), lastModified: seoulToIso(modified) };
 }
 
+/**
+ * 이슈 — **위키 게시본이 있는 이슈만.** 이슈 페이지가 위키 없는 이슈를 noindex 로 내보내므로
+ * sitemap 도 같은 기준이어야 한다(noindex ↔ sitemap 동기화).
+ *
+ * ⚠ 임시로 이슈마다 위키를 조회한다(N+1). 백엔드 피드가 위키 기준으로 거르기 시작하면
+ * (요청 중) 이 필터를 지운다. 조회에 실패한 이슈는 빼지 않는다 — 일시 오류로 sitemap 에서
+ * 들어갔다 빠졌다 하지 않게.
+ */
 export async function issueSitemapEntries(): Promise<SitemapEntries> {
   try {
     const items = await fetchAllSitemapIssues();
-    return items.map((item) => entry(issueHref(item.issueId), item.updatedAt));
+    const checks = await Promise.all(
+      items.map((item) =>
+        fetchIssueWiki(item.issueId)
+          .then((wiki) => isPublishedWiki(wiki))
+          .catch(() => true),
+      ),
+    );
+    return items
+      .filter((_, i) => checks[i])
+      .map((item) => entry(issueHref(item.issueId), item.updatedAt));
   } catch (err) {
     console.error("[sitemap] 이슈 피드 조회 실패", err);
     return [];
