@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
 import { MessageSquare, ArrowLeft } from "lucide-react";
 import {
   fetchIssueDetail,
   type IssueDetailResponse,
 } from "@/lib/api/issue";
-import { fromBase36 } from "@/lib/slug";
 import { imageUrl } from "@/lib/imageUrl";
 import useAuthStore from "@/store/useAuthStore";
 import IssueThreadList from "@/components/room/IssueThreadList";
+import type { IssueRoomResponse } from "@/lib/api/room";
 import { capture } from "@/lib/analytics/client";
 
 // ── Skeleton ─────────────────────────────────────
@@ -36,24 +35,36 @@ function SkeletonShell() {
   );
 }
 
-// ── Page ──────────────────────────────────────────
-export default function IssueDetailPage() {
-  const { id } = useParams<{ id: string }>();
+// ── View ──────────────────────────────────────────
+/**
+ * 이슈 상세 본문. 경로 판정은 서버 `page.tsx` 가 끝낸 뒤 정수 id 만 받는다.
+ *
+ * `initialData`·`initialRoom` 은 서버가 토큰 없이 받아 둔 값이다. 있으면 첫 렌더(SSR)
+ * 부터 본문을 그려 크롤러가 읽을 수 있고, 하이드레이션 뒤 로그인 사용자 기준으로 다시 받는다.
+ */
+export default function IssueDetailView({
+  issueId,
+  initialData,
+  initialRoom,
+}: {
+  issueId: number;
+  initialData?: IssueDetailResponse;
+  initialRoom?: IssueRoomResponse;
+}) {
   const { accessToken, _hasHydrated } = useAuthStore();
 
   // 조회 성공 여부와 무관하게 "이 이슈를 열었다"는 사실을 기록한다.
   // 로드 실패까지 포함해야 이탈 지점이 보인다.
   // 같은 이슈로는 한 번만 — 중복 이유는 `DebateRoom` 의 같은 가드 참고.
-  const lastViewedRef = useRef<string | null>(null);
+  const lastViewedRef = useRef<number | null>(null);
   useEffect(() => {
-    const issueId = fromBase36(id);
-    if (!issueId || lastViewedRef.current === id) return;
-    lastViewedRef.current = id;
+    if (lastViewedRef.current === issueId) return;
+    lastViewedRef.current = issueId;
     capture({ name: "issue_viewed", props: { issue_id: issueId } });
-  }, [id]);
+  }, [issueId]);
 
-  const [data, setData] = useState<IssueDetailResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<IssueDetailResponse | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -64,9 +75,10 @@ export default function IssueDetailPage() {
 
     async function load() {
       try {
-        setLoading(true);
+        // 초기 데이터가 있으면 다시 받는 동안에도 그것을 보여 준다 — 스켈레톤으로 깜빡이지 않게
+        if (retryKey > 0) setLoading(true);
         setError(null);
-        const res = await fetchIssueDetail(fromBase36(id), accessToken);
+        const res = await fetchIssueDetail(issueId, accessToken);
         if (!cancelled) setData(res);
       } catch (err) {
         if (!cancelled) {
@@ -83,11 +95,10 @@ export default function IssueDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [_hasHydrated, accessToken, id, retryKey]);
+  }, [_hasHydrated, accessToken, issueId, retryKey]);
 
-  if (!_hasHydrated || loading) return <SkeletonShell />;
-
-  if (error || !data) {
+  if (!data) {
+    if (!_hasHydrated || loading) return <SkeletonShell />;
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-body-16 text-red">
@@ -154,7 +165,7 @@ export default function IssueDetailPage() {
       )}
 
       {/* 토론 주제 목록 → 해당 주제 탭이 열린 토론방으로 (GET /api/v2/room) */}
-      <IssueThreadList issueId={fromBase36(id)} />
+      <IssueThreadList issueId={issueId} initialData={initialRoom} />
     </div>
   );
 }

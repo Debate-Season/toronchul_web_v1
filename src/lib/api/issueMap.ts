@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { IssueStatus } from "./issue";
 
 // ── Types ────────────────────────────────────────
 
@@ -13,6 +14,7 @@ export interface IssueMapItem {
    * 기능이 생겨 서버가 숫자를 내려주기 시작하면 그때 `number` 로 좁힌다.
    */
   bookMarks: number | null;
+  status: IssueStatus;
 }
 
 // ── 이슈맵 목록 ─────────────────────────────────────

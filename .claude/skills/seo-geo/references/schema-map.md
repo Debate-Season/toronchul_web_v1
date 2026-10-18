@@ -9,10 +9,10 @@
 
 | 엔티티 | 경로 | JSON-LD | 상태 |
 |---|---|---|---|
-| **이슈** | `/issue/{id}-{slug}` | `Article` (+ `about.sameAs`) · `BreadcrumbList` · `ItemList`(타임라인) | 구현 대상 |
-| **사건** | `.../event/{id}-{slug}` | `NewsArticle` · `BreadcrumbList` · `isPartOf`→이슈 | **API 없음 — 자리만 예약** (PRD §3.4) |
-| **토론** | `.../debate/{id}-{slug}` | `DiscussionForumPosting` (+ `interactionStatistic`, `comment[]`) · `BreadcrumbList` | **채팅 API 401** (PRD §7-1) |
-| **AI 뉴스** | `/news/{id}-{slug}` | `NewsArticle` (+ AI 생성 명시) | **게이트 통과 필수** → `ai-news.md` |
+| **이슈** | `/issue/{b36}` | `Article` (+ `about.sameAs`) · `BreadcrumbList` · `ItemList`(타임라인) | 구현 대상 |
+| **사건** | `/event/{b36}` | `NewsArticle` · `BreadcrumbList` · `isPartOf`→이슈 | **API 없음 — 자리만 예약** (PRD §3.4) |
+| **토론** | `/debate/{b36}` | `DiscussionForumPosting` (+ `interactionStatistic`, `comment[]`) · `BreadcrumbList` | **채팅 API 401** (PRD §7-1) |
+| **AI 기사** | `/article/{b36}` | `NewsArticle` (+ AI 생성 명시) | **게이트 통과 필수** → `ai-news.md` |
 | 전역 | `layout.tsx` | `Organization` | 구현 대상 |
 
 `DiscussionForumPosting` 은 Google 이 "Discussions and forums" 리치 결과를 위해 지정한 타입이다. 커뮤니티가 검색 상위를 먹는 그 자리이고, 토론철 콘텐츠 형태와 정확히 맞는다.

@@ -7,6 +7,23 @@ const nextConfig: NextConfig = {
   // 생성되므로 실사용 영향은 없다(v0.8.0 PRD §3.4).
   skipTrailingSlashRedirect: true,
 
+  // 슬러그 없는 `/issue/{b36}`·`/debate/{b36}` 로의 이전(PRD v0.9.0 §4.3e). 옛 URL 은
+  // 이미 색인·공유돼 있어 영구히 남긴다. 세그먼트 수가 달라 두 규칙은 겹치지 않는다.
+  async redirects() {
+    return [
+      {
+        source: "/issue/:id/:slug/:threadId/:threadSlug",
+        destination: "/debate/:threadId",
+        permanent: true,
+      },
+      {
+        source: "/issue/:id/:slug",
+        destination: "/issue/:id",
+        permanent: true,
+      },
+    ];
+  },
+
   async rewrites() {
     const apiBase = process.env.API_BASE_URL ?? "https://api.toronchul.app/prod";
     // PostHog 리전. 수집·자산 호스트만 갈리고 클라이언트 코드는 무관하다.

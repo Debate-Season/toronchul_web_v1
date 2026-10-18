@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { IssueMapItem } from "@/lib/api/issueMap";
-import { issueHref } from "@/lib/slug";
+import { issueHref } from "@/lib/routes";
 
 // ── IssueMapCard ────────────────────────────────
 /**
@@ -16,7 +16,7 @@ import { issueHref } from "@/lib/slug";
  */
 export default function IssueMapCard({ data }: { data: IssueMapItem }) {
   return (
-    <Link href={issueHref(data.issueId, data.title)} className="block h-full">
+    <Link href={issueHref(data.issueId)} className="block h-full">
       <article className="flex h-full flex-col rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70">
         {/* 제목 */}
         <h3 className="text-body-16 font-semibold text-text-primary mb-3 line-clamp-2 min-h-[3rem]">

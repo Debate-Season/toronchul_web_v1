@@ -55,7 +55,7 @@ src/
 │   ├── home/, map/, layout/   # 기능별 컴포넌트
 ├── lib/
 │   ├── api/            # apiFetch 기반 API 모듈 (feature 단위)
-│   └── slug.ts         # slug 유틸
+│   └── routes.ts       # URL 조립·판정 (PRD v0.9.0 §4)
 └── store/              # Zustand (persist + _hasHydrated)
 ```
 

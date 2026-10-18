@@ -21,6 +21,22 @@ interface ApiResponse<T> {
   data: T;
 }
 
+/**
+ * HTTP 오류 응답. 메시지는 기존 `[code] message` 형식 그대로라 메시지를 보던
+ * 호출부는 영향이 없다. 404 를 `notFound()` 로 바꿔야 하는 서버 페이지처럼
+ * 상태로 분기할 때 `status`·`code` 를 쓴다.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 /** 토큰 갱신 중복 요청 방지 */
 let refreshPromise: Promise<string | null> | null = null;
 
@@ -148,7 +164,7 @@ export async function apiFetch<T>(
     const body = await res.json().catch(() => null);
     const code = body?.code ?? res.status;
     const msg = body?.message ?? `API ${rest.method ?? "GET"} ${path} failed: ${res.status}`;
-    throw new Error(`[${code}] ${msg}`);
+    throw new ApiError(`[${code}] ${msg}`, res.status, String(code));
   }
 
   const json: ApiResponse<T> = await res.json();

@@ -1,6 +1,6 @@
 ---
 name: seo-geo
-description: 토론철 웹의 SEO/GEO 담당. 이슈·사건·토론·AI뉴스 상세 페이지가 Google/Naver 검색과 생성형 AI 검색(ChatGPT Search, Perplexity, Claude, AI Overviews)에 잡히게 만든다. URL 스킴, canonical, JSON-LD 구조화 데이터, sitemap, robots.txt, RSC 전환, hreflang/다국어 확장, 메타데이터 품질을 수행. SEO·GEO·검색 노출·색인·구조화 데이터·사이트맵·robots·canonical·메타태그·llms.txt·AI 크롤러 관련 작업에 호출.
+description: 토론철 웹의 SEO/GEO 담당. 이슈·사건·토론·AI기사 상세 페이지가 Google/Naver 검색과 생성형 AI 검색(ChatGPT Search, Perplexity, Claude, AI Overviews)에 잡히게 만든다. URL 스킴, canonical, JSON-LD 구조화 데이터, sitemap, robots.txt, RSC 전환, 원문 단일 원칙(다국어·번역 경계), 메타데이터 품질을 수행. SEO·GEO·검색 노출·색인·구조화 데이터·사이트맵·robots·canonical·메타태그·llms.txt·AI 크롤러 관련 작업에 호출.
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash(${CLAUDE_SKILL_DIR}/scripts/audit.sh:*), Bash(curl:*), Bash(npm run lint:*), Bash(npx tsc:*)
 ---
 
@@ -28,7 +28,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash(${CLAUDE_SKILL_DIR}/scripts/a
 | `references/crawler-policy.md` | `robots.ts` 작성/수정 · AI 봇 허용 판단 · **Naver 색인 문제** |
 | `references/schema-map.md` | JSON-LD 추가/수정 · `src/lib/seo.ts` 빌더 확장 |
 | `references/content-patterns.md` | 페이지 본문 문구 작성/검토 · 메타 문구 길이 |
-| `references/ai-news.md` | **`/news/*` 관련 모든 작업** · `generateSitemaps` · 대량 발행 계획 |
+| `references/ai-news.md` | **`/article/*` 관련 모든 작업** · `generateSitemaps` · 대량 발행 계획 |
+| `references/url-evidence.md` | **URL 스킴 변경 제안** · 슬러그·ID 방식 질문 · `/en`·hreflang·자동 언어 전환 요청 · 번역 기능 설계 |
 
 **Step 3** — 인자가 있으면 그 작업($ARGUMENTS), 없으면 전체 감사.
 
@@ -36,11 +37,11 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash(${CLAUDE_SKILL_DIR}/scripts/a
 
 | 파일 | 역할 |
 |---|---|
-| `src/lib/seo.ts` | `SITE_URL` · `buildMetadata` · `buildAlternates` · JSON-LD 빌더 — **단일 출처** |
-| `src/lib/slug.ts` | `toSlug` · `issueHref` · `threadHref` — URL 조립의 유일한 경로 |
+| `src/lib/seo.ts` | `SITE_URL` · `buildMetadata` · JSON-LD 빌더 — **단일 출처** |
+| `src/lib/routes.ts` (구 `slug.ts`) | `issueHref` · `debateHref` · `eventHref` · `articleHref` · `parseEntityId` — URL 조립·판정의 유일한 경로 |
 | `src/app/layout.tsx` | `metadataBase` · `title.template` · 전역 robots/OG · Organization JSON-LD |
 | `src/app/robots.ts` · `src/app/sitemap.ts` | 봇 규칙 · URL 목록 |
-| `src/app/issue/[issueSlug]/page.tsx` · `.../debate/[threadSlug]/page.tsx` | 상세 (서버 컴포넌트) |
+| `src/app/{issue,debate,event,article}/[id]/page.tsx` | 상세 (서버 컴포넌트) |
 | `src/lib/api/{issue,room,chat}.ts` | SSR 데이터 소스 (`apiFetch` 경유) |
 
 ---
@@ -49,13 +50,13 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash(${CLAUDE_SKILL_DIR}/scripts/a
 
 ### URL — 토론철에서 가장 중요한 축
 
-1. **정체성은 id, slug 는 장식** — `{id}-{slug}` 융합, id 는 선두 10진수. 제목이 바뀌어도 정체성 불변
-2. **정식형은 하나뿐** — slug 가 다르거나 없으면 **301**. 200 방치 금지
-3. **URL 은 `src/lib/slug.ts` 헬퍼로만 만든다** — 컴포넌트에서 문자열 조립 금지
-4. **slug 는 NFC 정규화 + 80자 상한** — NFD 한글이 섞이면 같은 문서가 다른 바이트열 URL 이 되어 301 루프
-5. **로케일은 `as-needed`** — 한국어 무접두, 영어 `/en/…`. 영어 출시 시 한국어 URL 이 하나도 바뀌면 안 된다
-6. **로케일 접두어는 색인 트리에만** — `/oauth/*` `/api/*` `/login` `/settings/*` `/profile/*` `/onboarding/*` 은 **절대 건드리지 않는다.** 카카오·애플 콘솔에 등록된 Redirect URI 이고 운영 중인 모바일 앱과 호환돼야 한다
-7. **한 번 색인된 URL 은 바꾸지 않는다** — 지금이 마지막 기회 (PRD §3.1)
+1. **`/{entity}/{b36}` — 슬러그 없음, 소문자 base36, 엔티티별 평평한 디렉터리** (`/issue` `/event` `/debate` `/article`). 정체성은 id 뿐 (PRD §4.2). 슬러그 재도입 제안은 `url-evidence.md` §1 로 판단한다
+2. **정식형은 하나뿐** — 대문자 → 308 소문자형, 선행 0·잘못된 문자·없는 id → **404**. 별칭에 리다이렉트를 주지 않는다 (PRD §4.3d)
+3. **URL 은 `src/lib/routes.ts` 헬퍼로만 만든다** — 컴포넌트에서 문자열 조립 금지
+4. **레거시 `/issue/{b36}/{slug}[/{b36}/{slug}]` 는 영구 308** — 공유된 링크는 회수할 수 없다 (PRD §4.3e)
+5. **원문 단일** — 언어 접두어·`?lang=`·hreflang 없음. 크롤러·비로그인 사용자에게는 항상 원문. `Accept-Language`·IP 로 본문·경로를 바꾸지 않는다. 번역은 로그인 사용자 화면의 클라이언트 아일랜드에서만 (PRD §5.6)
+6. **`proxy.ts`(구 middleware)를 두지 않는다** — 필요해지면 `/oauth/*` `/api/*` `/login` `/settings/*` `/profile/*` `/onboarding/*` 은 **절대 매칭하지 않는다.** 카카오·애플 콘솔에 등록된 Redirect URI 이고 운영 중인 모바일 앱과 호환돼야 한다
+7. **한 번 색인된 URL 은 바꾸지 않는다** — 지금이 마지막 기회 (PRD §3.1). 사이트맵 제출은 새 스킴 배포 후에만
 
 ### 렌더링
 
@@ -107,9 +108,9 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash(${CLAUDE_SKILL_DIR}/scripts/a
 | **add-schema** | `references/schema-map.md` 를 먼저 읽는다. 폐기 타입 확인 → Google 규격 확인 → `src/lib/seo.ts` 빌더 확장 |
 | **validate** | PRD §9 체크리스트 실행 + Rich Results Test · Schema.org Validator |
 | **optimize-geo** | `references/geo-evidence.md`·`content-patterns.md` 를 읽는다. 페이지 종류별 기법 매핑 점검 |
-| **url-check** | 정식형 200 / 틀린 slug 301 / id 만 301 / 잘못된 id 404 / OAuth 경로 무개입 / canonical 일치 |
-| **i18n-prep** | `/en` 도입 시 한국어 URL 이 하나도 안 바뀌는지, `alternates.languages` 가 로케일 추가에 열려 있는지 |
-| **news-gate** | `references/ai-news.md` 의 발행 게이트 체크리스트를 실행. **하나라도 미충족이면 `/news/` Disallow 권고** |
+| **url-check** | 정식형 200 / 대문자 308 / 별칭·없는 id 404 / 레거시 308 / OAuth 경로 무개입 / canonical 일치 (PRD §9.1) |
+| **i18n-check** | `Accept-Language: en` 요청 시 HTML 본문 동일 / hreflang 없음 / 번역문이 SSR HTML 에 없음 (PRD §5.6) |
+| **article-gate** | `references/ai-news.md` 의 발행 게이트 체크리스트를 실행. **하나라도 미충족이면 `/article/` Disallow 권고** |
 | **update-doc** | 결정·전략 변경 → PRD. 코드 패턴·트러블슈팅·현황 → `docs/seo-implementation.md`. 이 파일은 요약·절차만 |
 
 **audit 출력 형식**
@@ -131,7 +132,8 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash(${CLAUDE_SKILL_DIR}/scripts/a
 원칙 1~28 은 위에 있다. 여기엔 **되돌릴 수 없거나 도메인 전체를 죽이는 것**만 적는다.
 
 - **이미 색인된 URL 스킴을 바꾼다** (원칙 7) — 영구 리다이렉트 체인을 진다
-- **로케일 미들웨어를 인증·앱 경로에 적용한다** (원칙 6) — 운영 중인 로그인과 모바일 앱이 즉시 깨진다
+- **로케일·언어 미들웨어를 인증·앱 경로에 적용한다** (원칙 6) — 운영 중인 로그인과 모바일 앱이 즉시 깨진다
+- **같은 URL 에서 `Accept-Language`·IP 로 본문을 바꾸거나 자동 리다이렉트한다** (원칙 5) — Googlebot 은 언어 헤더 없이 미국 IP 로 온다. 한국어 페이지가 색인에서 빠진다
 - **사이트맵·소유확인 파일의 URL 을 바꾼다** — 재등록이 필요해진다. `public/naver*.html` 은 Disallow 에 걸려도 안 되고 sitemap 에 넣어도 안 된다
 - **`llms.txt` 를 만든다** — 3개 독립 실측이 모두 무의미 결론(발행 도메인의 97%가 한 달간 fetch 0회). 요청받으면 `geo-evidence.md` §3 을 근거로 거절하고 실증된 기법에 자원을 돌린다
 - **AI 생성 기사를 사람 검수·AI 명시 없이 대량 발행한다** — scaled content abuse 판정은 **도메인 전체**를 죽인다. 이슈·토론 페이지까지 같이 (`ai-news.md`)

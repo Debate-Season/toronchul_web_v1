@@ -19,6 +19,16 @@ export interface RoomDetailResponse {
   teams: TeamScore[];
   createdAt: string;
   opinion: string;
+  // 상위 관계 — 백엔드 PR #214 (2026-10-19 배포, 실 curl 확인)
+  issueId: number;
+  issueTitle: string;
+  /** 레거시 NULL 행은 백엔드가 "THREAD" 로 내려준다 */
+  roomType: "CONTAINER" | "THREAD";
+  /** THREAD 의 소속 컨테이너. CONTAINER 자신과 이관 전 레거시 방은 null */
+  containerRoomId: number | null;
+  status: "OPEN" | "CLOSED" | "HIDDEN" | "DELETED";
+  /** 수정 기록이 없으면 createdAt 과 같다. 스레드는 대부분 생성일이라 lastmod 로 쓰지 않는다 */
+  updatedAt: string;
 }
 
 // ── API ──────────────────────────────────────────
