@@ -14,10 +14,21 @@ import { issueHref } from "@/lib/routes";
  * 제목의 `min-h-[3rem]` 은 두 줄 자리를 미리 잡아 **행이 달라도** 카드 높이를
  * 같게 만든다. 홈의 `IssueCardNew` 와 같은 값이라 두 화면의 카드 키가 맞는다.
  */
-export default function IssueMapCard({ data }: { data: IssueMapItem }) {
+export default function IssueMapCard({
+  data,
+  muted = false,
+}: {
+  data: IssueMapItem;
+  /** 잠자는 이슈 섹션 — 진행 중인 이슈보다 한 단계 가라앉혀 보인다 */
+  muted?: boolean;
+}) {
   return (
     <Link href={issueHref(data.issueId)} className="block h-full">
-      <article className="flex h-full flex-col rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70">
+      <article
+        className={`flex h-full flex-col rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70 ${
+          muted ? "opacity-70 hover:opacity-100" : ""
+        }`}
+      >
         {/* 제목 */}
         <h3 className="text-body-16 font-semibold text-text-primary mb-3 line-clamp-2 min-h-[3rem]">
           {data.title}

@@ -77,6 +77,11 @@ export default function IssueMapPage() {
     );
   }
 
+  // 잠자는 이슈(DORMANT)는 숨김이 아니라 분류다 — 목록 아래 별도 섹션으로 모은다.
+  // 백엔드가 응답의 status 로만 알려 주고 목록에서 거르지 않는다(IssueStatus 주석)
+  const active = items.filter((item) => item.status !== "DORMANT");
+  const dormant = items.filter((item) => item.status === "DORMANT");
+
   return (
     <div className="flex flex-col gap-6 py-4">
       <h1 className="text-header-20 font-bold text-text-primary">
@@ -85,11 +90,36 @@ export default function IssueMapPage() {
 
       {/* 이슈 그리드 */}
       {items.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {items.map((item) => (
-            <IssueMapCard key={item.issueId} data={item} />
-          ))}
-        </div>
+        <>
+          {active.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {active.map((item) => (
+                <IssueMapCard key={item.issueId} data={item} />
+              ))}
+            </div>
+          )}
+
+          {dormant.length > 0 && (
+            <section aria-labelledby="dormant-heading" className="flex flex-col gap-3 pt-4">
+              <div>
+                <h2
+                  id="dormant-heading"
+                  className="text-body-16 font-semibold text-text-primary"
+                >
+                  잠자는 이슈 {dormant.length}
+                </h2>
+                <p className="mt-1 text-caption-12 text-text-secondary">
+                  한동안 새 사건이 없는 이슈예요. 토론과 위키는 그대로 볼 수 있어요.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {dormant.map((item) => (
+                  <IssueMapCard key={item.issueId} data={item} muted />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       ) : (
         <div className="flex flex-col items-center justify-center py-20">
           <p className="text-body-16 text-text-secondary">
