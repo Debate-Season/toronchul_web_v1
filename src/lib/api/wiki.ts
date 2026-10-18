@@ -20,8 +20,23 @@ export interface WikiResponse {
   model: string | null;
   /** 미게시면 null */
   revisionId: number | null;
-  /** `yyyy-MM-dd'T'HH:mm:ss` (Asia/Seoul, 오프셋 없음). 미게시면 null */
+  /**
+   * 본문 요약 — 2~3문장 평문(Markdown 없음), 150자 안팎. 미게시이거나 요약이 없으면 null
+   * (2026-10-19 Swagger·실 curl 확인). ADMIN 수동 리비전은 비어 있을 수 있다
+   */
+  summary: string | null;
+  /** `yyyy-MM-dd'T'HH:mm:ss` (Asia/Seoul, 오프셋 없음). 미게시면 null — 받을 때 정규화한다(아래) */
   updatedAt: string | null;
+}
+
+/**
+ * 실제 응답의 `updatedAt`. Swagger 는 `date-time` 문자열이라고 하지만 2026-10-19 운영은
+ * `[2026,10,19,3,48,27,937427000]` 같은 **배열**로 내려왔다(Jackson 기본 직렬화). 배열을
+ * 문자열로 믿고 쓰면 날짜 포맷에서 예외가 나 페이지가 500 이 된다 — 그래서 `unknown` 으로
+ * 받아 좁힌다. 백엔드가 문자열로 고쳐도 그대로 동작한다.
+ */
+interface RawWikiResponse extends Omit<WikiResponse, "updatedAt"> {
+  updatedAt: unknown;
 }
 
 /** 게시된 위키 — status "PUBLISHED" 이고 본문이 있는 경우만 */
@@ -42,9 +57,30 @@ export async function fetchIssueWiki(
   const params = new URLSearchParams();
   params.set("issue-id", String(issueId));
 
-  return apiFetch<WikiResponse>(`/api/v2/wiki?${params.toString()}`, {
+  const raw = await apiFetch<RawWikiResponse>(`/api/v2/wiki?${params.toString()}`, {
     token,
   });
+  return { ...raw, updatedAt: toBackendDateTime(raw.updatedAt) };
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * 백엔드 시각을 `yyyy-MM-dd'T'HH:mm:ss` 문자열로. 문자열이면 그대로, Jackson 배열
+ * `[y, M, d, H?, m?, s?, nano?]` 이면 조립한다. 그 밖은 null — 위키를 미게시로 취급해
+ * 섹션·카드를 그리지 않는다(페이지는 깨지지 않는다).
+ */
+function toBackendDateTime(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (
+    Array.isArray(value) &&
+    value.length >= 3 &&
+    value.every((n): n is number => typeof n === "number" && Number.isInteger(n))
+  ) {
+    const [y, mo, d, h = 0, mi = 0, s = 0] = value;
+    return `${y}-${pad2(mo)}-${pad2(d)}T${pad2(h)}:${pad2(mi)}:${pad2(s)}`;
+  }
+  return null;
 }
 
 // ── Helpers ──────────────────────────────────────
