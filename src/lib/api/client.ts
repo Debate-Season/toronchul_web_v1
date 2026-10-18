@@ -106,6 +106,18 @@ const DEFAULT_TIMEOUT = 10_000; // 10 s
  */
 const SERVER_ANON_REVALIDATE = 60;
 
+/**
+ * 웹 서버 렌더 전용 키 (백엔드 PR #218, PRD v0.9.0 §7-14).
+ *
+ * 서버에서 토큰 없이 보내는 GET 에 `X-Toronchul-Web-Key` 로 붙이면 백엔드가 비로그인 IP
+ * 버킷(분당 100) 대신 웹 서버 버킷(분당 3,000)에서 차감한다. 레이트 리밋 버킷만 바꾸고
+ * 인증·인가와는 무관하다. 키가 없거나 틀리면 지금처럼 IP 버킷이다 — 429 가 계속 나면
+ * 키 불일치를 의심할 것.
+ *
+ * `NEXT_PUBLIC_` 이 아니라 브라우저 번들에는 들어가지 않는다(브라우저에서는 undefined).
+ */
+const WEB_SSR_KEY = process.env.BACKEND_WEB_SSR_KEY;
+
 export async function apiFetch<T>(
   path: string,
   options: FetchOptions = {},
@@ -138,12 +150,14 @@ export async function apiFetch<T>(
     mergedHeaders["Authorization"] = `Bearer ${token}`;
   }
 
+  const isServerAnonGet =
+    typeof window === "undefined" && !token && (rest.method ?? "GET") === "GET";
+  if (isServerAnonGet && WEB_SSR_KEY) {
+    mergedHeaders["X-Toronchul-Web-Key"] = WEB_SSR_KEY;
+  }
+
   const serverCache =
-    typeof window === "undefined" &&
-    !token &&
-    (rest.method ?? "GET") === "GET" &&
-    rest.cache === undefined &&
-    rest.next === undefined
+    isServerAnonGet && rest.cache === undefined && rest.next === undefined
       ? { next: { revalidate: SERVER_ANON_REVALIDATE } }
       : {};
 
