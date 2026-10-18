@@ -25,16 +25,17 @@ export default function IssueWiki({ content, updatedAt }: IssueWikiProps) {
     <section
       id="wiki"
       aria-labelledby="wiki-heading"
-      className="scroll-mt-20 rounded-2xl border border-border bg-surface-elevated p-5"
+      // 카드로 감싸지 않는다 — 위키는 이 페이지의 본문이라 배경 위에 글로 놓는다
+      className="scroll-mt-20"
     >
       <h2
         id="wiki-heading"
-        className="mb-4 text-body-16 font-semibold text-text-primary"
+        className="mb-4 text-body-16 font-semibold text-text-secondary"
       >
         토론위키
       </h2>
 
-      <div className="flex flex-col gap-3 text-body-14 leading-relaxed text-text-primary">
+      <div className="flex flex-col gap-4 text-body-16 leading-relaxed text-text-primary">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           skipHtml
@@ -44,7 +45,7 @@ export default function IssueWiki({ content, updatedAt }: IssueWikiProps) {
         </ReactMarkdown>
       </div>
 
-      <p className="mt-5 text-caption-12 text-text-secondary">
+      <p className="mt-6 text-caption-12 text-text-secondary">
         {WIKI_CREDIT_TEXT} · 최종 수정 {formatWikiDate(updatedAt)}
       </p>
     </section>
@@ -54,17 +55,18 @@ export default function IssueWiki({ content, updatedAt }: IssueWikiProps) {
 const MARKDOWN_COMPONENTS: Components = {
   // 제목은 두 단계씩 내린다 — 문서 H1 은 이슈 제목, H2 는 이 섹션("토론위키")이다.
   // 일정하게 내려야 위키의 `#`·`##` 계층이 뭉개지지 않는다
+  // 크기는 페이지 H1(이슈 제목, header-20)을 넘지 않는다
   h1: ({ children }) => (
-    <h3 className="mt-3 text-body-16 font-bold text-text-primary">{children}</h3>
+    <h3 className="mt-6 text-header-20 font-bold text-text-primary">{children}</h3>
   ),
   h2: ({ children }) => (
-    <h4 className="mt-3 text-body-16 font-bold text-text-primary">{children}</h4>
+    <h4 className="mt-6 text-header-18 font-bold text-text-primary">{children}</h4>
   ),
   h3: ({ children }) => (
-    <h5 className="mt-2 text-body-14 font-bold text-text-primary">{children}</h5>
+    <h5 className="mt-4 text-body-16 font-bold text-text-primary">{children}</h5>
   ),
   h4: ({ children }) => (
-    <h6 className="mt-2 text-body-14 font-semibold text-text-primary">{children}</h6>
+    <h6 className="mt-3 text-body-16 font-semibold text-text-primary">{children}</h6>
   ),
   p: ({ children }) => <p>{children}</p>,
   ul: ({ children }) => <ul className="flex list-disc flex-col gap-1 pl-5">{children}</ul>,
@@ -88,7 +90,7 @@ const MARKDOWN_COMPONENTS: Components = {
   },
   table: ({ children }) => (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-caption-12">{children}</table>
+      <table className="w-full border-collapse text-body-14">{children}</table>
     </div>
   ),
   th: ({ children }) => (
