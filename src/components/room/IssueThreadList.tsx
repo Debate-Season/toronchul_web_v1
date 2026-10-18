@@ -56,8 +56,8 @@ export default function IssueThreadList({
 
   return (
     <section>
-      <h2 className="mb-3 text-body-16 font-semibold text-text-primary">
-        토론 주제
+      <h2 className="mb-3 text-header-20 font-bold text-text-primary">
+        토론 주제 {data.threads.length}개
       </h2>
       <div className="flex flex-col gap-3">
         {data.threads.map((thread) => (
@@ -66,7 +66,7 @@ export default function IssueThreadList({
             href={debateHref(thread.threadId)}
           >
             <article className="rounded-2xl border border-border bg-surface-elevated p-4 transition-colors hover:border-grey-70">
-              <h3 className="mb-3 line-clamp-2 text-body-16 font-semibold text-text-primary">
+              <h3 className="mb-3 line-clamp-2 text-header-18 font-semibold text-text-primary">
                 {thread.title}
               </h3>
               <DeVoteGauge
