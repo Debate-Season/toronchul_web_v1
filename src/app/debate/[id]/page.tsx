@@ -86,7 +86,9 @@ export default async function DebatePage({ params }: Params) {
 
   // 요약만 싣는다 — 본문 전체는 이슈 페이지 한 곳에만 둔다(같은 본문이 모든 토론 페이지에 반복되면 중복 콘텐츠)
   const wikiSummary =
-    wiki && isPublishedWiki(wiki) ? wikiSummaryFromMarkdown(wiki.content) : null;
+    wiki && isPublishedWiki(wiki)
+      ? (wiki.summary ?? wikiSummaryFromMarkdown(wiki.content))
+      : null;
   const wikiCard =
     wiki && isPublishedWiki(wiki) && wikiSummary ? (
       <DeWikiSummaryCard

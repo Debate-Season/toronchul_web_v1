@@ -61,7 +61,8 @@ const loadIssueCreatedAt = cache(async (issueId: number) => {
 
 function describe(detail: IssueDetailResponse, wiki?: PublishedWiki): string {
   // 위키가 있으면 이슈를 설명하는 첫 문단이 가장 좋은 설명이다(PRD v1.0.0 §5)
-  const summary = wiki && wikiSummaryFromMarkdown(wiki.content, 155);
+  // 백엔드 요약이 우선, 없으면(수동 리비전 등) 본문 첫 문단
+  const summary = wiki && (wiki.summary ?? wikiSummaryFromMarkdown(wiki.content, 155));
   if (summary) return toDescription(summary);
   const topics = detail.chatRoomMap.map((room) => room.title);
   if (topics.length === 0) {
