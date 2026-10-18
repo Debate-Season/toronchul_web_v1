@@ -59,13 +59,13 @@
 // src/app/article/sitemap.ts
 export async function generateSitemaps() {
   const total = await fetchNewsCount();
-  return Array.from({ length: Math.ceil(total / 50_000) }, (_, i) => ({ id: i }));
+  return Array.from({ length: Math.ceil(total / 40_000) }, (_, i) => ({ id: String(i) }));
 }
 
-export default async function sitemap(props: { id: Promise<number> }): Promise<MetadataRoute.Sitemap> {
-  const id = await props.id;          // ← Next.js 16. 평문 number 로 받으면 깨진다
-  const start = id * 50_000;
-  const articles = await fetchNewsSlice(start, 50_000);
+export default async function sitemap(props: { id: Promise<string> }): Promise<MetadataRoute.Sitemap> {
+  const id = Number(await props.id);  // ← Next.js 16: Promise<string>. 평문 값·number 로 받으면 깨진다
+  const start = id * 40_000;          // 한도 50,000·50MB 에 여유를 둔다
+  const articles = await fetchNewsSlice(start, 40_000);
   return articles.map((a) => ({
     url: `${SITE_URL}${articleHref(a.id)}`,
     lastModified: a.updatedAt,        // ← 실제 갱신 시각만. new Date() 금지
