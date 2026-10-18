@@ -196,11 +196,11 @@ export default function IssueDetailView({
         </div>
       </div>
 
-      {/* 토론위키 — 이슈를 설명하는 본문. 크롤러가 읽는 본문의 대부분이 여기서 나온다 */}
-      {wiki}
-
-      {/* 사건 타임라인 — 위키(배경) 다음, 토론 주제(여론) 앞. "무슨 일이 있었나" */}
+      {/* 사건 타임라인 — 가장 위. "최근 무슨 일이 있었나" 가 이슈 페이지의 첫 정보다 */}
       {timeline}
+
+      {/* 토론위키 — 이슈를 설명하는 본문(배경). 크롤러가 읽는 본문의 대부분이 여기서 나온다 */}
+      {wiki}
 
       <div className="md:hidden">{sidebar}</div>
       {rnbSlot && createPortal(sidebar, rnbSlot)}
