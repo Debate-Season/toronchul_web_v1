@@ -9,7 +9,7 @@ import {
   type BestChatRoom,
 } from "@/lib/api/home";
 import useAuthStore from "@/store/useAuthStore";
-import { threadHref } from "@/lib/slug";
+import { debateHref } from "@/lib/routes";
 import { performLogout } from "@/lib/auth/logout";
 import DeConfirmDialog from "@/components/TDS/DeConfirmDialog";
 import LoginModal from "@/components/auth/LoginModal";
@@ -20,14 +20,14 @@ import { PUBLIC_NAV_ITEMS } from "@/components/layout/navItems";
 import { RNB_SLOT_ID } from "@/lib/layoutSlots";
 
 /**
- * 토론방 라우트(`/issue/[id]/[slug]/[threadId]/[threadSlug]`) 판별.
+ * 토론방 라우트(`/debate/[id]`) 판별.
  *
  * 이 화면에서만 우측 사이드바가 "실시간 핫한 토론" 대신 **토론방이 채우는 빈
- * 자리**가 된다. 이슈 상세(`/issue/[id]/[slug]`, 세그먼트 3개)는 해당 없다.
+ * 자리**가 된다. 이슈 상세(`/issue/[id]`)는 해당 없다.
  */
 function isDebateRoomPath(pathname: string): boolean {
   const segments = pathname.split("/").filter(Boolean);
-  return segments.length === 5 && segments[0] === "issue";
+  return segments.length === 2 && segments[0] === "debate";
 }
 
 // ── Top Bar ────────────────────────────────────────
@@ -333,7 +333,7 @@ function HotDebateCard() {
           {topics.map((topic, idx) => (
             <li key={topic.debateId}>
               <Link
-                href={threadHref(topic.issueId, topic.issueTitle, topic.debateId, topic.debateTitle)}
+                href={debateHref(topic.debateId)}
                 className="flex items-start gap-3 rounded-lg px-1 py-1 -mx-1 transition-colors hover:bg-grey-90 cursor-pointer"
               >
                 <span className="text-body-14 font-bold text-brand">

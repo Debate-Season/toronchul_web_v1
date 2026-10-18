@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchIssueRoom, type IssueRoomResponse } from "@/lib/api/room";
-import { threadHref } from "@/lib/slug";
+import { debateHref } from "@/lib/routes";
 import useAuthStore from "@/store/useAuthStore";
 import DeVoteGauge from "@/components/TDS/DeVoteGauge";
 
 interface IssueThreadListProps {
   issueId: number;
+  /** 서버가 토큰 없이 받아 둔 목록. 있으면 첫 렌더(SSR)부터 그리고, 하이드레이션 뒤 내 투표를 반영해 다시 받는다 */
+  initialData?: IssueRoomResponse;
 }
 
 /**
@@ -17,11 +19,14 @@ interface IssueThreadListProps {
  * 찬반 수치는 `GET /api/v2/room` 이 스레드마다 이미 내려주므로 여기서 방별로
  * 추가 조회를 하지 않는다.
  */
-export default function IssueThreadList({ issueId }: IssueThreadListProps) {
+export default function IssueThreadList({
+  issueId,
+  initialData,
+}: IssueThreadListProps) {
   const { accessToken, _hasHydrated } = useAuthStore();
 
-  const [data, setData] = useState<IssueRoomResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<IssueRoomResponse | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -32,7 +37,8 @@ export default function IssueThreadList({ issueId }: IssueThreadListProps) {
 
     async function load() {
       try {
-        setLoading(true);
+        // 초기 데이터가 있으면 다시 받는 동안에도 그것을 보여 준다 — 스켈레톤으로 깜빡이지 않게
+        if (retryKey > 0) setLoading(true);
         setError(null);
         const res = await fetchIssueRoom(issueId, accessToken);
         if (!cancelled) setData(res);
@@ -53,9 +59,8 @@ export default function IssueThreadList({ issueId }: IssueThreadListProps) {
     };
   }, [_hasHydrated, accessToken, issueId, retryKey]);
 
-  if (!_hasHydrated || loading) return <ListSkeleton />;
-
-  if (error || !data) {
+  if (!data) {
+    if (!_hasHydrated || loading) return <ListSkeleton />;
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-12">
         <p className="text-body-14 text-red">
@@ -91,12 +96,7 @@ export default function IssueThreadList({ issueId }: IssueThreadListProps) {
         {data.threads.map((thread) => (
           <Link
             key={thread.threadId}
-            href={threadHref(
-              issueId,
-              data.issueTitle,
-              thread.threadId,
-              thread.title,
-            )}
+            href={debateHref(thread.threadId)}
           >
             <article className="rounded-2xl border border-border bg-surface-elevated p-4 transition-colors hover:border-grey-70">
               <h3 className="mb-3 line-clamp-2 text-body-16 font-semibold text-text-primary">

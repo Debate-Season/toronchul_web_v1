@@ -12,7 +12,7 @@
 | **토론 상세** | **Authoritative + Statistics** | 논문의 Debate 도메인에서 **Authoritative 가 유일하게 유의미**. Opinion/Debate 에서 Statistics 도 최적 |
 | **이슈위키** | **Cite Sources** | Statement/Facts 도메인의 최적 기법 |
 | **이슈 맥락 설명** | **Quotation Addition** | People & Society, Explanation, History |
-| **AI 뉴스** | **Cite Sources + Statistics** | 원본 조사 부재 신호를 상쇄한다 → `ai-news.md` |
+| **AI 기사** | **Cite Sources + Statistics** | 원본 조사 부재 신호를 상쇄한다 → `ai-news.md` |
 | 전 페이지 | **Fluency** | 정보 추가 없이 가독성만 올려도 +15~30% |
 
 **Keyword Stuffing 은 하지 않는다.** 개선이 없을 뿐 아니라 Perplexity 에서는 베이스라인보다 10% 나빴다.

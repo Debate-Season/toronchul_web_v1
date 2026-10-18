@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { fetchIssueRoom, type IssueRoomResponse } from "@/lib/api/room";
-import { issueHref } from "@/lib/slug";
+import { issueHref } from "@/lib/routes";
 import { RNB_SLOT_ID } from "@/lib/layoutSlots";
 import useAuthStore from "@/store/useAuthStore";
 import { capture } from "@/lib/analytics/client";
@@ -17,6 +17,8 @@ interface DebateRoomProps {
   issueId: number;
   /** URL 이 가리키는 토론 주제. 목록에 없으면 첫 주제로 폴백한다. */
   threadId: number;
+  /** 서버가 토큰 없이 받아 둔 방 정보. 있으면 첫 렌더(SSR)부터 그리고, 하이드레이션 뒤 내 투표를 반영해 다시 받는다 */
+  initialData?: IssueRoomResponse;
 }
 
 /**
@@ -38,7 +40,11 @@ function resolveThread(
  * 화면은 뷰포트에 고정된 세로 컬럼이고 메시지 목록만 스크롤한다. 그래서 높이
  * 계산을 여기서 한 번만 하고 `ChatRoom` 은 남는 높이를 채우기만 한다.
  */
-export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
+export default function DebateRoom({
+  issueId,
+  threadId,
+  initialData,
+}: DebateRoomProps) {
   const { accessToken, _hasHydrated } = useAuthStore();
 
   // 우측 사이드바가 내준 자리. 레이아웃이 먼저 렌더되므로 마운트 시점에 이미
@@ -65,8 +71,8 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
     });
   }, [issueId, threadId]);
 
-  const [data, setData] = useState<IssueRoomResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<IssueRoomResponse | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
@@ -79,7 +85,8 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
 
     async function load() {
       try {
-        setLoading(true);
+        // 초기 데이터가 있으면 다시 받는 동안에도 그것을 보여 준다 — 스켈레톤으로 깜빡이지 않게
+        if (retryKey > 0) setLoading(true);
         setError(null);
         const res = await fetchIssueRoom(issueId, accessToken);
         if (!cancelled) setData(res);
@@ -100,9 +107,8 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
     };
   }, [_hasHydrated, accessToken, issueId, retryKey]);
 
-  if (!_hasHydrated || loading) return <DebateRoomSkeleton />;
-
-  if (error || !data) {
+  if (!data) {
+    if (!_hasHydrated || loading) return <DebateRoomSkeleton />;
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
         <p className="text-body-16 text-red">
@@ -119,7 +125,7 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
     );
   }
 
-  const backHref = issueHref(issueId, data.issueTitle);
+  const backHref = issueHref(issueId);
 
   const thread = resolveThread(data.threads, threadId);
 
@@ -156,8 +162,6 @@ export default function DebateRoom({ issueId, threadId }: DebateRoomProps) {
 
       {/* 토론 주제 탭 */}
       <ThreadTabs
-        issueId={issueId}
-        issueTitle={data.issueTitle}
         threads={data.threads}
         selectedThreadId={thread.threadId}
       />

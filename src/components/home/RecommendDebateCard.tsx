@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { BestChatRoom } from "@/lib/api/home";
-import { threadHref } from "@/lib/slug";
+import { debateHref } from "@/lib/routes";
 import DeVoteGauge from "@/components/TDS/DeVoteGauge";
 
 export interface DebateVote {
@@ -22,7 +22,7 @@ export default function RecommendDebateCard({
 }) {
   return (
     <Link
-      href={threadHref(data.issueId, data.issueTitle, data.debateId, data.debateTitle)}
+      href={debateHref(data.debateId)}
       className="block"
     >
       <article className="flex items-center gap-3 rounded-2xl border border-border bg-surface-elevated p-4 cursor-pointer transition-colors hover:border-grey-70">

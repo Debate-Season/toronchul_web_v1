@@ -1,6 +1,6 @@
 # AI 뉴스 기사 — 착수 전 필독
 
-> **언제 읽나** — `/news/*` 관련 작업, `generateSitemaps` 도입, 대량 발행 계획이 나올 때.
+> **언제 읽나** — `/article/*` 관련 작업, `generateSitemaps` 도입, 대량 발행 계획이 나올 때.
 > **현재 상태**: 백엔드 API 없음(PRD §3.4). 정책 게이트 미통과. **v0.9.0 은 URL 자리와 스키마 계약만 예약한다.**
 >
 > 이 문서가 존재하는 이유 — AI 뉴스는 **잘못하면 도메인 전체를 죽이는** 유일한 축이다. 이슈·토론 페이지가 아무리 잘 돼 있어도 같이 죽는다. 착수 시점에 급하게 판단하지 않도록 미리 적어둔다.
@@ -34,14 +34,14 @@
 
 ## 2. 발행 게이트 — 전부 충족해야 색인 대상
 
-착수 시점에 하나라도 못 지키면 **`/news/` 를 robots.txt Disallow 로 두고 시작한다.** 색인은 나중에 켤 수 있지만, 판정을 한 번 받으면 회복에 수개월이 걸린다.
+착수 시점에 하나라도 못 지키면 **`/article/` 를 robots.txt Disallow 로 두고 시작한다.** 색인은 나중에 켤 수 있지만, 판정을 한 번 받으면 회복에 수개월이 걸린다.
 
 - [ ] **발행 전 사람의 편집 검수.** 무검수 자동 발행 금지
 - [ ] **AI 생성 사실 명시** — 화면 상단 라벨 + `NewsArticle.creditText`
 - [ ] **`publisher` 는 조직(토론철).** 가상의 기자 이름을 만들지 않는다
 - [ ] **발행량 제한** — 인간 검수 역량에 연동. 검수 없이 늘리지 않는다
 - [ ] **기사가 토론철 1차 데이터를 근거로 삼는다** — 외부 기사 요약본이 아니다
-- [ ] **인터넷신문 등록 여부 확인** — 등록 전에는 `/news/` Disallow 를 유지하는 편이 안전하다
+- [ ] **인터넷신문 등록 여부 확인** — 등록 전에는 `/article/` Disallow 를 유지하는 편이 안전하다
 
 **이 조건을 못 지킬 것 같으면 AI 기사를 색인 대상에서 빼는 편이 도메인 전체에 이득이다.**
 
@@ -51,12 +51,12 @@
 
 이슈·토론만이면 URL 50개라 단일 `sitemap.ts` 로 충분하다. **AI 뉴스가 생기는 순간 자릿수가 바뀐다** — 일 1,000건 × 1년 = 36.5만 URL → 뉴스만 8개 샤드.
 
-- `generateSitemaps` 가 한 라우트의 사이트맵을 여러 파일로 분할하고 `/news/sitemap/{id}.xml` 로 서빙한다
+- `generateSitemaps` 가 한 라우트의 사이트맵을 여러 파일로 분할하고 `/article/sitemap/{id}.xml` 로 서빙한다
 - Google 한도는 **사이트맵 파일당 50,000 URL**. 표준 패턴은 `id * 50000` 슬라이싱
 - **Next.js 16 파괴적 변경: `id` 가 Promise 로 전달된다.** 이전 버전의 평문 값 시그니처를 쓰면 깨진다 ◐
 
 ```ts
-// src/app/news/sitemap.ts
+// src/app/article/sitemap.ts
 export async function generateSitemaps() {
   const total = await fetchNewsCount();
   return Array.from({ length: Math.ceil(total / 50_000) }, (_, i) => ({ id: i }));
@@ -67,7 +67,7 @@ export default async function sitemap(props: { id: Promise<number> }): Promise<M
   const start = id * 50_000;
   const articles = await fetchNewsSlice(start, 50_000);
   return articles.map((a) => ({
-    url: `${SITE_URL}${newsHref(a.id, a.title)}`,
+    url: `${SITE_URL}${articleHref(a.id)}`,
     lastModified: a.updatedAt,        // ← 실제 갱신 시각만. new Date() 금지
   }));
 }

@@ -3,11 +3,9 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import type { RoomThread } from "@/lib/api/room";
-import { threadHref } from "@/lib/slug";
+import { debateHref } from "@/lib/routes";
 
 interface ThreadTabsProps {
-  issueId: number;
-  issueTitle: string;
   threads: RoomThread[];
   selectedThreadId: number;
 }
@@ -18,8 +16,6 @@ interface ThreadTabsProps {
  * 지나온 탭을 하나씩 되짚지 않고 이슈로 나가게 하기 위함이다.
  */
 export default function ThreadTabs({
-  issueId,
-  issueTitle,
   threads,
   selectedThreadId,
 }: ThreadTabsProps) {
@@ -46,7 +42,7 @@ export default function ThreadTabs({
           <Link
             key={thread.threadId}
             ref={active ? activeRef : null}
-            href={threadHref(issueId, issueTitle, thread.threadId, thread.title)}
+            href={debateHref(thread.threadId)}
             replace
             role="tab"
             aria-selected={active}

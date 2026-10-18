@@ -54,7 +54,8 @@ fi
 ls "$ROOT"/public/naver*.html >/dev/null 2>&1 && echo "  Naver 소유확인 파일 있음 (robots Disallow·sitemap 포함 금지)"
 
 hr "4. URL 스킴"
-for p in "/issue/8-도널드-트럼프-2기-행정부:200" "/issue/8:301" "/issue/8-틀린슬러그:301" "/issue/abc-x:404"; do
+# PRD §9.1 — 정식형 200 / 대문자 308 / 별칭·없는 id 404 / 레거시 308
+for p in "/issue/8:200" "/issue/K:308" "/issue/0k:404" "/issue/8/옛-슬러그:308" "/debate/1p:200" "/debate/4b:404" "/issue/8/x/1p/y:308"; do
   u="${p%:*}"; want="${p##*:}"
   got=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${SITE}${u}")
   [ "$got" = "$want" ] && s="OK" || s="기대 ${want}"
@@ -65,17 +66,17 @@ hr "5. 코드 위반  (0건이어야 정상)"
 cd "$ROOT" || exit 1
 chk() { printf '  %-34s ' "$1"; shift; out=$("$@" 2>/dev/null); n=$(printf '%s' "$out" | grep -c . ); [ "$n" -eq 0 ] && echo "0" || { echo "$n 건"; printf '%s\n' "$out" | sed 's/^/      /'; }; }
 
-chk 'page.tsx 의 "use client"' bash -c 'grep -rln "\"use client\"" src/app/issue src/app/news 2>/dev/null | grep "page.tsx$"'
-chk 'sitemap 의 new Date()'    bash -c 'grep -n "new Date()" src/app/sitemap.ts src/app/*/sitemap.ts 2>/dev/null'
+chk 'page.tsx 의 "use client"' bash -c 'grep -rln "\"use client\"" src/app/issue src/app/debate src/app/event src/app/article 2>/dev/null | grep "page.tsx$"'
+chk 'sitemap 의 new Date()'    bash -c 'grep -n "new Date()" src/app/sitemap.ts src/app/*/sitemap.ts 2>/dev/null | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(\*|//)"'
 chk '도메인 하드코딩'           bash -c 'grep -rn --include="*.ts" --include="*.tsx" "toronchul\.app" src/ | grep -v "lib/seo.ts" | grep -v "NEXT_PUBLIC_WS_URL" | grep -v "NEXT_PUBLIC_IMAGE_URL"'
 chk 'const SITE_URL 로컬 선언'  bash -c 'grep -rn --include="*.ts" --include="*.tsx" "const SITE_URL" src/ | grep -v "lib/seo.ts"'
-chk 'URL 문자열 직접 조립'      bash -c 'grep -rn --include="*.ts" --include="*.tsx" -e "\"/issue/" -e "\`/issue/" -e "\"/news/" src/ | grep -v "lib/slug.ts" | grep -v "^\S*: *\*"'
+chk 'URL 문자열 직접 조립'      bash -c 'grep -rn --include="*.ts" --include="*.tsx" -E -e "[\"\`]/(issue|debate|event|article)/" src/ | grep -v "lib/routes.ts" | grep -v "^\S*: *\*"'
 chk '폐기 스키마 (FAQPage 등)'  bash -c 'grep -rn --include="*.ts" --include="*.tsx" -e "FAQPage" -e "HowTo" -e "SpecialAnnouncement" src/'
 chk 'TDS 의 seo import'         bash -c 'grep -rn "@/lib/seo" src/components/TDS/ 2>/dev/null'
 chk 'any / @ts-ignore'          bash -c 'grep -rn --include="*.ts" --include="*.tsx" -e ": any" -e "@ts-ignore" src/lib/seo.ts src/app/sitemap.ts src/app/robots.ts 2>/dev/null'
 
 hr "6. 핵심 파일 존재"
-for f in src/lib/seo.ts src/lib/slug.ts src/app/robots.ts src/app/sitemap.ts; do
+for f in src/lib/seo.ts src/lib/routes.ts src/app/robots.ts src/app/sitemap.ts; do
   [ -f "$f" ] && printf '  O %s\n' "$f" || printf '  X %s\n' "$f"
 done
 echo
