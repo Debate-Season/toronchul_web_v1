@@ -45,7 +45,22 @@ export async function fetchIssueDetail(
   params.set("issue-id", String(issueId));
   if (page != null) params.set("page", String(page));
 
-  return apiFetch<IssueDetailResponse>(`/api/v1/issue?${params.toString()}`, {
+  const raw = await apiFetch<RawIssueDetailResponse>(`/api/v1/issue?${params.toString()}`, {
     token,
   });
+  return {
+    ...raw,
+    chatRoomMap: Array.isArray(raw.chatRoomMap) ? raw.chatRoomMap : [],
+    map: raw.map ?? {},
+  };
+}
+
+/**
+ * 실제 응답. 토론 주제가 아직 없는 이슈(컨테이너 방만 있음)는 `chatRoomMap` 이 빈 배열이
+ * 아니라 **null** 로 온다(2026-10-19, 새로 생성된 이슈 27~43 실측). 배열로 믿고 `.map()` 하면
+ * 서버 렌더가 예외로 500 이 된다 — 받을 때 빈 배열로 바꾼다. `map` 도 같은 이유로 방어한다.
+ */
+interface RawIssueDetailResponse extends Omit<IssueDetailResponse, "chatRoomMap" | "map"> {
+  chatRoomMap: ChatRoomInIssue[] | null;
+  map: Record<string, number> | null;
 }
