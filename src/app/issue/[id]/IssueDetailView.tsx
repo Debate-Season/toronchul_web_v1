@@ -49,12 +49,15 @@ export default function IssueDetailView({
   initialData,
   initialRoom,
   wiki,
+  timeline,
 }: {
   issueId: number;
   initialData?: IssueDetailResponse;
   initialRoom?: IssueRoomResponse;
   /** 게시된 위키가 없으면 비운다 — 빈 안내문도 그리지 않는다(PRD v1.0.0 §4.1) */
   wiki?: ReactNode;
+  /** 서버가 렌더해 둔 사건 타임라인 슬롯. 사건이 없으면 비운다(PRD v1.1.0 §3) */
+  timeline?: ReactNode;
 }) {
   const { accessToken, _hasHydrated } = useAuthStore();
 
@@ -148,6 +151,9 @@ export default function IssueDetailView({
 
       {/* 토론위키 — 이슈를 설명하는 본문. 크롤러가 읽는 본문의 대부분이 여기서 나온다 */}
       {wiki}
+
+      {/* 사건 타임라인 — 위키(배경) 다음, 토론 주제(여론) 앞. "무슨 일이 있었나" */}
+      {timeline}
 
       {/* 참여 커뮤니티 — 이슈 내 토론방에 참여한 사용자들의 소속 커뮤니티 아이콘 */}
       {communityEntries.length > 0 && (

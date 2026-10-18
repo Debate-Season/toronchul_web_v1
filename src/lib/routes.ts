@@ -39,6 +39,21 @@ export function issueHref(issueId: number): string {
   return `/issue/${toBase36(issueId)}`;
 }
 
+/** 토론철 아티클 상세 경로. 이슈·사건에 종속되지 않는다 — 어느 이슈에서 와도 이 한 URL 이다 */
+export function articleHref(articleId: number): string {
+  return `/article/${toBase36(articleId)}`;
+}
+
+/** 이슈 페이지 사건 타임라인의 한 사건. 사건 상세 페이지는 아직 없어 앵커로 가리킨다(PRD v1.1.0 §3) */
+export function issueEventHref(issueId: number, eventId: number): string {
+  return `${issueHref(issueId)}#${eventAnchorId(eventId)}`;
+}
+
+/** 사건 앵커 id — 타임라인의 `id` 와 링크가 같은 값을 쓴다 */
+export function eventAnchorId(eventId: number): string {
+  return `event-${toBase36(eventId)}`;
+}
+
 /**
  * 토론 상세 경로. 토론방은 이슈당 하나이고 스레드(토론 주제)가 열릴 탭을 정한다.
  * 상위 이슈는 경로에 없다 — 페이지가 `GET /api/v1/room` 의 `issueId` 로 찾는다.

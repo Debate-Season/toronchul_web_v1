@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/issue";
 import { fetchIssueMap } from "@/lib/api/issueMap";
 import { fetchIssueRoom } from "@/lib/api/room";
+import { fetchIssueTimeline } from "@/lib/api/article";
 import { fetchIssueWiki, isPublishedWiki, type PublishedWiki } from "@/lib/api/wiki";
 import { issueHref, parseEntityId } from "@/lib/routes";
 import {
@@ -22,6 +23,7 @@ import {
 import { WIKI_CREDIT_TEXT, wikiSummaryFromMarkdown } from "@/lib/wikiText";
 import JsonLd from "@/components/seo/JsonLd";
 import IssueWiki from "@/components/wiki/IssueWiki";
+import EventTimeline from "@/components/issue/EventTimeline";
 import IssueDetailView from "./IssueDetailView";
 
 type Params = { params: Promise<{ id: string }> };
@@ -98,11 +100,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 export default async function IssuePage({ params }: Params) {
   const { id } = await params;
   const { issueId, detail } = await loadIssue(id);
-  const [room, createdAt, wiki] = await Promise.all([
+  const [room, createdAt, wiki, timeline] = await Promise.all([
     // 토론 주제 목록은 없어도 페이지가 성립한다 — 실패하면 클라이언트가 다시 받는다
     fetchIssueRoom(issueId).catch(() => undefined),
     loadIssueCreatedAt(issueId),
     loadWiki(issueId),
+    // 첫 페이지(최근 20개 사건)만 서버에서 그린다. 실패하면 타임라인 없이 그린다
+    fetchIssueTimeline(issueId, { size: 20 }).catch(() => undefined),
   ]);
 
   const path = issueHref(issueId);
@@ -137,6 +141,7 @@ export default async function IssuePage({ params }: Params) {
         initialData={detail}
         initialRoom={room}
         wiki={wiki && <IssueWiki content={wiki.content} updatedAt={wiki.updatedAt} />}
+        timeline={timeline && <EventTimeline events={timeline.items} />}
       />
     </>
   );
