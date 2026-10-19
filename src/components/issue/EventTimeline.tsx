@@ -28,7 +28,7 @@ function daysAgo(dateTime: string): string {
 }
 
 /** 카드 폭·간격(px). 축 선분 길이와 스크롤 위치 계산이 같은 값을 쓴다 */
-const CARD_WIDTH = 156;
+const CARD_WIDTH = 220;
 const CARD_GAP = 16;
 /** 축 점의 중심 x — 점은 카드 왼쪽 안쪽에 둔다(음수 좌표면 스크롤 영역 경계에서 잘린다) */
 const DOT_CENTER = 4;
