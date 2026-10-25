@@ -31,12 +31,10 @@ export const metadata: Metadata = buildMetadata({
  * 아래는 홈에서 옮겨 온 실시간 미디어.
  */
 export default async function NewsPage() {
-  // 목록을 못 받으면(429 등) 빈 섹션으로 그리고 다음 재생성(60초)에 다시 받는다 — 빌드·ISR 이
-  // 예외로 멈추지 않게
-  const articles = (await fetchArticleList().catch(() => [])).slice(
-    0,
-    ARTICLES_PER_PAGE * ARTICLE_PAGES,
-  );
+  // 목록을 못 받으면 빈 섹션으로 그리고 다음 재생성(60초)에 다시 받는다 — 빌드·ISR 이 예외로 멈추지 않게
+  const articles: ArticleCard[] = await fetchArticleList({ size: ARTICLES_PER_PAGE * ARTICLE_PAGES })
+    .then((page) => page.items)
+    .catch(() => []);
   const pages: ArticleCard[][] = [];
   for (let i = 0; i < articles.length; i += ARTICLES_PER_PAGE) {
     pages.push(articles.slice(i, i + ARTICLES_PER_PAGE));

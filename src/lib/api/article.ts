@@ -3,7 +3,6 @@
 // 세션이 확정한 실제 응답 기준 — Swagger 는 사건 스키마 이름 충돌로 틀리게 보였다(#223 에서 수정).
 // 첫 게시본이 나오면 실 curl 로 다시 대조할 것.
 import { apiFetch } from "./client";
-import { fetchAllSitemapArticles } from "./sitemapFeed";
 import { fetchIssueMap } from "./issueMap";
 import { isIndexableIssueStatus } from "./issue";
 
@@ -129,26 +128,35 @@ async function settleWithLimit<T, R>(
   return results;
 }
 
-// ── 뉴스 목록 (임시 조합) ─────────────────────────
+// ── Types (GET /api/v1/article/list) ─────────────
+// 2026-10-26 실 curl 확인 (백엔드 PR #233): 비로그인 200, 게시된 토론철판만
 
-/**
- * 게시된 토론철 아티클 전체, 발행 최신순. 비로그인 목록 API 가 아직 없어서(`/api/v1/articles` 는
- * 401) 사이트맵 피드의 id 로 단건을 병렬 조회해 만든다 — 2026-10-26 기준 23건. 서버에서만 부르고
- * 각 요청은 `apiFetch` 의 서버 익명 캐시(60초)를 탄다. 목록 API 가 생기면 그걸로 갈아끼울 것.
- * 단건이 실패(회수 직후 404 등)하면 그 항목만 뺀다.
- */
-export async function fetchArticleList(): Promise<ArticleCard[]> {
-  const feed = await fetchAllSitemapArticles();
-  const results = await settleWithLimit(feed, (item) => fetchArticle(item.articleId));
-  return results
-    .flatMap((result) => (result.status === "fulfilled" ? [result.value] : []))
-    .map(({ articleId, headline, summary, datePublished }) => ({
-      articleId,
-      headline,
-      summary,
-      datePublished,
-    }))
-    .sort((a, b) => (a.datePublished < b.datePublished ? 1 : -1));
+export interface ArticleListItem extends ArticleCard {
+  articleSection: string;
+  /** 관련 노출 중 이슈. 없으면 [] */
+  issueIds: number[];
+}
+
+export interface ArticleListPage {
+  /** datePublished 내림차순, 같으면 articleId 내림차순 */
+  items: ArticleListItem[];
+  /** 불투명 문자열. 그대로 다음 요청에 넘긴다. 마지막이면 null */
+  nextCursor: string | null;
+}
+
+/** 아티클 목록 한 페이지. size 기본 20, 최대 100. 잘못된 cursor 는 400 */
+export async function fetchArticleList(options?: {
+  cursor?: string;
+  size?: number;
+  token?: string | null;
+}): Promise<ArticleListPage> {
+  const params = new URLSearchParams();
+  if (options?.cursor) params.set("cursor", options.cursor);
+  if (options?.size != null) params.set("size", String(options.size));
+  const qs = params.toString();
+  return apiFetch<ArticleListPage>(`/api/v1/article/list${qs ? `?${qs}` : ""}`, {
+    token: options?.token,
+  });
 }
 
 // ── 최근 사건 (임시 조합) ─────────────────────────
