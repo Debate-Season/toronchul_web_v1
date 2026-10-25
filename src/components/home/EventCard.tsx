@@ -9,7 +9,7 @@ import { formatWikiDate } from "@/lib/wikiText";
  * 사건에 게시 기사가 있으면 최신 기사의 요약을 두 줄까지 보인다.
  */
 export default function EventCard({ data }: { data: RecentEvent }) {
-  const article = data.articles[0];
+  const article = data.article;
 
   return (
     <Link href={issueEventHref(data.issueId, data.eventId)} className="block">
