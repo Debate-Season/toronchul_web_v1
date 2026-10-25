@@ -1,19 +1,50 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchIssueMap, type IssueMapItem } from "@/lib/api/issueMap";
 import IssueMapCard from "@/components/map/IssueMapCard";
 import useAuthStore from "@/store/useAuthStore";
+
+// ── 스크롤 복원 ──────────────────────────────────
+/**
+ * 이슈 상세에서 뒤로가기·"이슈맵으로" 로 돌아오면 보던 위치로 되돌린다.
+ *
+ * 목록을 마운트 뒤에 받아 그리므로 브라우저·Next 의 기본 복원이 걸리는 시점엔 페이지가 스켈레톤
+ * 높이뿐이라 맨 위로 떨어진다. 그래서 (1) 받은 목록을 모듈에 들고 있다가 다시 들어오면 바로
+ * 그리고, (2) 스크롤 위치를 sessionStorage 에 적어 두었다가 목록이 그려진 뒤 직접 옮긴다.
+ * 탭 단위 저장이라 새 탭·새 세션은 맨 위에서 시작한다.
+ */
+const SCROLL_KEY = "issueMap:scrollY";
+let cachedItems: IssueMapItem[] | null = null;
+
+function readSavedScroll(): number | null {
+  try {
+    const raw = sessionStorage.getItem(SCROLL_KEY);
+    const y = raw === null ? NaN : Number(raw);
+    return Number.isFinite(y) ? y : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveScroll(y: number) {
+  try {
+    sessionStorage.setItem(SCROLL_KEY, String(Math.round(y)));
+  } catch {
+    // 저장소가 막힌 환경(시크릿 등)에서는 복원 없이 동작한다
+  }
+}
 
 // ── Page ──────────────────────────────────────────
 export default function IssueMapPage() {
   const { accessToken, _hasHydrated } = useAuthStore();
 
-  const [items, setItems] = useState<IssueMapItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<IssueMapItem[]>(() => cachedItems ?? []);
+  const [loading, setLoading] = useState(() => cachedItems === null);
   const [error, setError] = useState<string | null>(null);
 
   const [retryKey, setRetryKey] = useState(0);
+  const restoredRef = useRef(false);
 
   useEffect(() => {
     if (!_hasHydrated) return;
@@ -22,10 +53,12 @@ export default function IssueMapPage() {
 
     async function load() {
       try {
-        setLoading(true);
+        // 들고 있는 목록이 있으면 스켈레톤 없이 그대로 두고 뒤에서 새로 받는다
+        if (cachedItems === null) setLoading(true);
         setError(null);
         // Optional Auth: token이 없어도 API 호출 가능
         const data = await fetchIssueMap(accessToken);
+        cachedItems = data;
         if (!cancelled) setItems(data);
       } catch (err) {
         if (!cancelled) {
@@ -43,6 +76,41 @@ export default function IssueMapPage() {
       cancelled = true;
     };
   }, [_hasHydrated, accessToken, retryKey]);
+
+  const ready = _hasHydrated && !loading && !error;
+
+  // 목록이 처음 그려진 직후 한 번만 저장된 위치로 옮긴다. Next 의 이동 후 맨 위 스크롤이
+  // 레이아웃 이펙트에서 먼저 돌기 때문에 다음 프레임에 옮겨야 덮이지 않는다
+  useEffect(() => {
+    if (!ready || restoredRef.current) return;
+    // 저장값이 없으면 맨 위 — "이슈맵으로" 링크는 scroll={false} 라 이슈 페이지의 위치가 남아 있다
+    const y = readSavedScroll() ?? 0;
+    // 플래그는 실제로 옮긴 뒤 세운다 — StrictMode 의 이펙트 재실행이 첫 프레임을 취소하기 때문
+    const frame = requestAnimationFrame(() => {
+      restoredRef.current = true;
+      window.scrollTo(0, y);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ready]);
+
+  // 위치는 스크롤할 때마다 적는다 — 언마운트 시점엔 Next 가 이미 다음 페이지로 스크롤을 옮겼을 수 있다.
+  // 카드를 누르면 URL 이 먼저 바뀌고 이 리스너가 떨어지기 전에 맨 위 스크롤(0)이 들어오므로,
+  // 주소가 이미 이슈맵이 아니면 적지 않는다
+  useEffect(() => {
+    if (!ready) return;
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (window.location.pathname === "/map") saveScroll(window.scrollY);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [ready]);
 
   // ── Hydration 대기 / Loading ──
   if (!_hasHydrated || loading) {

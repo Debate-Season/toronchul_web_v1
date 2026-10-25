@@ -1,4 +1,4 @@
-import { Home, Map, type LucideIcon } from "lucide-react";
+import { Home, Map, Newspaper, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -17,4 +17,5 @@ export interface NavItem {
 export const PUBLIC_NAV_ITEMS: NavItem[] = [
   { href: "/", label: "홈", icon: Home },
   { href: "/map", label: "이슈맵", icon: Map },
+  { href: "/news", label: "뉴스", icon: Newspaper },
 ];
