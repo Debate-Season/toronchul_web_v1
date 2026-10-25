@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Newspaper } from "lucide-react";
+import { FileText } from "lucide-react";
 import { fetchArticleList, type ArticleCard } from "@/lib/api/article";
 import { articleHref } from "@/lib/routes";
 import { ARTICLE_INDEXABLE, buildMetadata } from "@/lib/seo";
@@ -31,7 +31,12 @@ export const metadata: Metadata = buildMetadata({
  * 아래는 홈에서 옮겨 온 실시간 미디어.
  */
 export default async function NewsPage() {
-  const articles = (await fetchArticleList()).slice(0, ARTICLES_PER_PAGE * ARTICLE_PAGES);
+  // 목록을 못 받으면(429 등) 빈 섹션으로 그리고 다음 재생성(60초)에 다시 받는다 — 빌드·ISR 이
+  // 예외로 멈추지 않게
+  const articles = (await fetchArticleList().catch(() => [])).slice(
+    0,
+    ARTICLES_PER_PAGE * ARTICLE_PAGES,
+  );
   const pages: ArticleCard[][] = [];
   for (let i = 0; i < articles.length; i += ARTICLES_PER_PAGE) {
     pages.push(articles.slice(i, i + ARTICLES_PER_PAGE));
@@ -39,16 +44,17 @@ export default async function NewsPage() {
 
   return (
     <div className="flex flex-col gap-8 py-4">
-      <h1 className="text-header-20 font-bold text-text-primary">뉴스</h1>
+      {/* 화면 제목은 두지 않는다(LNB 가 이미 '뉴스'). 문서 개요용 h1 만 남긴다 */}
+      <h1 className="sr-only">뉴스</h1>
 
       <section>
         <div className="flex items-center gap-2 mb-4">
-          <Newspaper size={20} className="text-brand" />
+          <FileText size={20} className="text-brand" />
           <h2 className="text-header-20 font-bold text-text-primary">토론철 기사</h2>
         </div>
 
         {pages.length > 0 ? (
-          <DeHorizontalCarousel perView={1}>
+          <DeHorizontalCarousel perView={1} persistKey="news:articlePage">
             {pages.map((page) => (
               <ul key={page[0].articleId} className="flex flex-col gap-3">
                 {page.map((article) => (

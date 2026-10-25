@@ -4,6 +4,8 @@
 // 첫 게시본이 나오면 실 curl 로 다시 대조할 것.
 import { apiFetch } from "./client";
 import { fetchAllSitemapArticles } from "./sitemapFeed";
+import { fetchIssueMap } from "./issueMap";
+import { isIndexableIssueStatus } from "./issue";
 
 // ── Types (GET /api/v1/article?article-id=) ──────
 
@@ -96,6 +98,37 @@ export async function fetchIssueTimeline(
   });
 }
 
+// ── 임시 조합 공통 ───────────────────────────────
+
+/**
+ * 단건을 여러 개 부를 때 동시에 띄우는 최대 수. 한꺼번에 수십 개를 쏘면 백엔드가
+ * 429 RATE_LIMIT_EXCEEDED 를 준다(2026-10-26 빌드 프리렌더에서 실측).
+ */
+const FAN_OUT_CONCURRENCY = 4;
+
+/** `Promise.allSettled` 와 같은 결과를, 동시에 `FAN_OUT_CONCURRENCY` 개씩만 돌려 얻는다 */
+async function settleWithLimit<T, R>(
+  inputs: readonly T[],
+  run: (input: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(inputs.length);
+  let next = 0;
+  async function worker() {
+    while (next < inputs.length) {
+      const i = next++;
+      try {
+        results[i] = { status: "fulfilled", value: await run(inputs[i]) };
+      } catch (reason) {
+        results[i] = { status: "rejected", reason };
+      }
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(FAN_OUT_CONCURRENCY, inputs.length) }, worker),
+  );
+  return results;
+}
+
 // ── 뉴스 목록 (임시 조합) ─────────────────────────
 
 /**
@@ -106,7 +139,7 @@ export async function fetchIssueTimeline(
  */
 export async function fetchArticleList(): Promise<ArticleCard[]> {
   const feed = await fetchAllSitemapArticles();
-  const results = await Promise.allSettled(feed.map((item) => fetchArticle(item.articleId)));
+  const results = await settleWithLimit(feed, (item) => fetchArticle(item.articleId));
   return results
     .flatMap((result) => (result.status === "fulfilled" ? [result.value] : []))
     .map(({ articleId, headline, summary, datePublished }) => ({
@@ -116,4 +149,35 @@ export async function fetchArticleList(): Promise<ArticleCard[]> {
       datePublished,
     }))
     .sort((a, b) => (a.datePublished < b.datePublished ? 1 : -1));
+}
+
+// ── 최근 사건 (임시 조합) ─────────────────────────
+
+/** 홈 "사건 발생!" 의 사건 — 타임라인 사건에 그 사건이 걸린 이슈를 붙였다 */
+export interface RecentEvent extends IssueTimelineEvent {
+  issueId: number;
+  issueTitle: string;
+}
+
+/**
+ * 최근 생성된 사건 `count` 개. 비로그인 최근 사건 API 가 아직 없어서 노출 중인 이슈마다 타임라인을
+ * 받아 모은다(2026-10-26 기준 이슈 33개·사건 9개). 응답에 생성 시각이 없어 **eventId 내림차순을
+ * 생성 순으로 본다**(자동 증가). 한 사건이 여러 이슈에 걸리면 먼저 만난 이슈 하나로 링크한다.
+ * 서버에서만 부르고 각 요청은 `apiFetch` 의 서버 익명 캐시(60초)를 탄다. 실패한 이슈는 건너뛴다.
+ */
+export async function fetchRecentEvents(count: number): Promise<RecentEvent[]> {
+  const issues = (await fetchIssueMap()).filter((issue) => isIndexableIssueStatus(issue.status));
+  const timelines = await settleWithLimit(issues, (issue) =>
+    fetchIssueTimeline(issue.issueId, { size: 100 }),
+  );
+
+  const byId = new Map<number, RecentEvent>();
+  timelines.forEach((result, i) => {
+    if (result.status !== "fulfilled") return;
+    for (const event of result.value.items) {
+      if (byId.has(event.eventId)) continue;
+      byId.set(event.eventId, { ...event, issueId: issues[i].issueId, issueTitle: issues[i].title });
+    }
+  });
+  return [...byId.values()].sort((a, b) => b.eventId - a.eventId).slice(0, count);
 }
