@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { fetchArticleList } from "@/lib/api/article";
+import { Newspaper } from "lucide-react";
+import { fetchArticleList, type ArticleCard } from "@/lib/api/article";
 import { articleHref } from "@/lib/routes";
 import { ARTICLE_INDEXABLE, buildMetadata } from "@/lib/seo";
 import { formatWikiDate } from "@/lib/wikiText";
+import DeHorizontalCarousel from "@/components/TDS/DeHorizontalCarousel";
+import MediaSection from "@/components/media/MediaSection";
 
 /** 서버 익명 조회 캐시(`apiFetch`, 60초)와 같은 값 */
 export const revalidate = 60;
+
+/** 한 칸에 쌓는 기사 수 × 칸 수 = 최근 15건 */
+const ARTICLES_PER_PAGE = 5;
+const ARTICLE_PAGES = 3;
 
 /**
  * 아티클 페이지와 같은 색인 게이트를 따른다 — 목록만 색인되면 noindex 인 기사로 가는 링크 모음이 된다.
@@ -19,42 +26,63 @@ export const metadata: Metadata = buildMetadata({
   indexable: ARTICLE_INDEXABLE,
 });
 
-/** 토론철 아티클 목록 — `/news`. 발행 최신순, 카드를 누르면 `/article/{b36}` 로 간다 */
+/**
+ * 뉴스 — `/news`. 위는 토론철 기사(최근 15건을 5건씩 3칸, 홈 "실시간 Live" 처럼 좌우 버튼),
+ * 아래는 홈에서 옮겨 온 실시간 미디어.
+ */
 export default async function NewsPage() {
-  const articles = await fetchArticleList();
+  const articles = (await fetchArticleList()).slice(0, ARTICLES_PER_PAGE * ARTICLE_PAGES);
+  const pages: ArticleCard[][] = [];
+  for (let i = 0; i < articles.length; i += ARTICLES_PER_PAGE) {
+    pages.push(articles.slice(i, i + ARTICLES_PER_PAGE));
+  }
 
   return (
-    <div className="flex flex-col gap-6 py-4">
+    <div className="flex flex-col gap-8 py-4">
       <h1 className="text-header-20 font-bold text-text-primary">뉴스</h1>
 
-      {articles.length > 0 ? (
-        <ul className="flex flex-col gap-3">
-          {articles.map((article) => (
-            <li key={article.articleId}>
-              <Link href={articleHref(article.articleId)} className="block">
-                <article className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-elevated p-4 transition-colors hover:border-grey-70">
-                  <h2 className="text-body-16 font-semibold text-text-primary line-clamp-2">
-                    {article.headline}
-                  </h2>
-                  <p className="text-body-14 text-text-secondary line-clamp-2">
-                    {article.summary}
-                  </p>
-                  <time
-                    dateTime={article.datePublished}
-                    className="text-caption-12 text-text-secondary"
-                  >
-                    {formatWikiDate(article.datePublished)}
-                  </time>
-                </article>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-body-16 text-text-secondary">아직 게시된 기사가 없습니다.</p>
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Newspaper size={20} className="text-brand" />
+          <h2 className="text-header-20 font-bold text-text-primary">토론철 기사</h2>
         </div>
-      )}
+
+        {pages.length > 0 ? (
+          <DeHorizontalCarousel perView={1}>
+            {pages.map((page) => (
+              <ul key={page[0].articleId} className="flex flex-col gap-3">
+                {page.map((article) => (
+                  <li key={article.articleId}>
+                    <ArticleListCard article={article} />
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </DeHorizontalCarousel>
+        ) : (
+          <p className="py-10 text-center text-body-14 text-text-secondary">
+            아직 게시된 기사가 없습니다.
+          </p>
+        )}
+      </section>
+
+      <MediaSection />
     </div>
+  );
+}
+
+function ArticleListCard({ article }: { article: ArticleCard }) {
+  return (
+    <Link href={articleHref(article.articleId)} className="block">
+      <article className="flex flex-col gap-1.5 rounded-2xl border border-border bg-surface-elevated p-4 transition-colors hover:border-grey-70">
+        <h3 className="text-body-16 font-semibold text-text-primary line-clamp-2">
+          {article.headline}
+        </h3>
+        <p className="text-body-14 text-text-secondary line-clamp-1">{article.summary}</p>
+        <time dateTime={article.datePublished} className="text-caption-12 text-text-secondary">
+          {formatWikiDate(article.datePublished)}
+        </time>
+      </article>
+    </Link>
   );
 }
