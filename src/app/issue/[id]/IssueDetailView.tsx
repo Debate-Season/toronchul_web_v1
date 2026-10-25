@@ -176,8 +176,10 @@ export default function IssueDetailView({
     <div className="flex flex-col gap-10 py-4">
       {/* 뒤로가기 + 헤더. 토론 주제 수는 우측 사이드바의 토론 주제 제목으로 옮겼다 */}
       <div className="flex flex-col gap-3">
+        {/* scroll={false}: 맨 위로 보내지 않는다 — 이슈맵이 보던 위치를 직접 되돌린다 */}
         <Link
           href="/map"
+          scroll={false}
           className="flex items-center gap-1 text-caption-12 text-text-secondary w-fit"
         >
           <ArrowLeft size={14} />

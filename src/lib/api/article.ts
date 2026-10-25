@@ -3,6 +3,7 @@
 // 세션이 확정한 실제 응답 기준 — Swagger 는 사건 스키마 이름 충돌로 틀리게 보였다(#223 에서 수정).
 // 첫 게시본이 나오면 실 curl 로 다시 대조할 것.
 import { apiFetch } from "./client";
+import { fetchAllSitemapArticles } from "./sitemapFeed";
 
 // ── Types (GET /api/v1/article?article-id=) ──────
 
@@ -93,4 +94,26 @@ export async function fetchIssueTimeline(
   return apiFetch<IssueTimelinePage>(`/api/v1/issue/events?${params.toString()}`, {
     token: options?.token,
   });
+}
+
+// ── 뉴스 목록 (임시 조합) ─────────────────────────
+
+/**
+ * 게시된 토론철 아티클 전체, 발행 최신순. 비로그인 목록 API 가 아직 없어서(`/api/v1/articles` 는
+ * 401) 사이트맵 피드의 id 로 단건을 병렬 조회해 만든다 — 2026-10-26 기준 23건. 서버에서만 부르고
+ * 각 요청은 `apiFetch` 의 서버 익명 캐시(60초)를 탄다. 목록 API 가 생기면 그걸로 갈아끼울 것.
+ * 단건이 실패(회수 직후 404 등)하면 그 항목만 뺀다.
+ */
+export async function fetchArticleList(): Promise<ArticleCard[]> {
+  const feed = await fetchAllSitemapArticles();
+  const results = await Promise.allSettled(feed.map((item) => fetchArticle(item.articleId)));
+  return results
+    .flatMap((result) => (result.status === "fulfilled" ? [result.value] : []))
+    .map(({ articleId, headline, summary, datePublished }) => ({
+      articleId,
+      headline,
+      summary,
+      datePublished,
+    }))
+    .sort((a, b) => (a.datePublished < b.datePublished ? 1 : -1));
 }
